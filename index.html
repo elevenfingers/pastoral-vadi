@@ -191,24 +191,33 @@
     .zone-list-meta { font-size: 11px; color: #888; }
     .zone-empty { font-size: 13px; color: #bbb; text-align: center; padding: 24px 0; font-style: italic; }
 
-    /* DRAWING INDICATOR */
-    #drawing-hint {
+    /* DRAWING TOOLBAR */
+    #drawing-toolbar {
       position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-      background: rgba(29,158,117,0.92); color: white;
-      padding: 8px 16px; border-radius: 20px;
-      font-size: 12px; font-weight: 500;
-      z-index: 95; display: none; white-space: nowrap;
-      backdrop-filter: blur(4px);
+      display: none; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.96); border-radius: 20px;
+      padding: 6px 10px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+      z-index: 95; white-space: nowrap;
+      backdrop-filter: blur(8px);
     }
-    #drawing-hint.visible { display: block; }
+    #drawing-toolbar.visible { display: flex; }
+    #drawing-hint {
+      font-size: 12px; font-weight: 500; color: #2c2c2a;
+      padding: 0 6px;
+    }
+    #undo-zone-btn, #cancel-zone-btn {
+      width: 32px; height: 32px; border-radius: 10px;
+      border: none; background: #f5f0e8; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #undo-zone-btn i, #cancel-zone-btn i { font-size: 16px; color: #2c2c2a; }
+    #cancel-zone-btn i { color: #E24B4A; }
     #finish-zone-btn {
-      position: absolute; top: 60px; right: 12px;
       background: #1D9E75; color: white;
-      padding: 8px 14px; border-radius: 20px;
+      padding: 6px 14px; border-radius: 14px;
       font-size: 12px; font-weight: 600; border: none; cursor: pointer;
-      z-index: 95; display: none;
     }
-    #finish-zone-btn.visible { display: block; }
 
     /* MODAL */
     #modal-overlay {
@@ -359,9 +368,13 @@
     </button>
   </div>
 
-  <!-- Çizim ipuçları -->
-  <div id="drawing-hint">Nokta ekle — bitirmek için çift tıkla</div>
-  <button id="finish-zone-btn">Zonu kapat ✓</button>
+  <!-- Çizim araç çubuğu -->
+  <div id="drawing-toolbar">
+    <button id="undo-zone-btn"><i class="ti ti-arrow-back-up"></i></button>
+    <div id="drawing-hint">Haritaya dokun — nokta ekle</div>
+    <button id="cancel-zone-btn"><i class="ti ti-x"></i></button>
+    <button id="finish-zone-btn">Kapat ✓</button>
+  </div>
 
   <!-- Sağ alt köşe — radyal menüyü açar -->
   <div id="bottom-right-trigger">
@@ -466,6 +479,7 @@ const MAP_URL = 'harita.jpeg';
 
 let pins = [];
 let zones = [];
+let minScale = 0.25;
 let addingMode = false;
 let drawingZone = false;
 let zonePoints = [];
@@ -478,6 +492,7 @@ let scale = 1, offsetX = 0, offsetY = 0;
 let isPanning = false, panStart = null;
 let pinDragging = null;
 let lastTouchDist = null;
+let lastTouchMid = null;
 let topBarOpen = false;
 let radialOpen = false;
 let zonePanelOpen = false;
@@ -625,16 +640,14 @@ function startDrawingZone() {
   drawingZone = true; zonePoints = [];
   cancelAddingPin();
   mapContainer.classList.add('drawing-zone');
-  drawingHint.classList.add('visible');
-  finishZoneBtn.classList.add('visible');
+  document.getElementById('drawing-toolbar').classList.add('visible');
   renderZonePreview();
 }
 
 function cancelDrawing() {
   drawingZone = false; zonePoints = [];
   mapContainer.classList.remove('drawing-zone');
-  drawingHint.classList.remove('visible');
-  finishZoneBtn.classList.remove('visible');
+  document.getElementById('drawing-toolbar').classList.remove('visible');
   renderZonePreview();
 }
 
@@ -645,6 +658,14 @@ function cancelAddingPin() {
 }
 
 finishZoneBtn.addEventListener('click', finishZone);
+
+document.getElementById('undo-zone-btn').addEventListener('click', () => {
+  if (zonePoints.length > 0) { zonePoints.pop(); renderZonePreview(); }
+});
+
+document.getElementById('cancel-zone-btn').addEventListener('click', () => {
+  cancelDrawing(); setTopBarMode('map');
+});
 
 function finishZone() {
   if (zonePoints.length < 3) { cancelDrawing(); setTopBarMode('map'); return; }
@@ -728,8 +749,15 @@ function renderZones() {
 }
 
 /* ---- MAP INTERACTIONS ---- */
+let activeTouches = 0;
+
 mapContainer.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') activeTouches++;
   if (e.target.closest('.pin')) return;
+
+  // Çift parmakla dokunuluyorsa nokta ekleme, sadece zoom
+  if (activeTouches >= 2) { isPanning = false; return; }
+
   if (drawingZone) {
     const rect = mapContainer.getBoundingClientRect();
     const mc = containerToMap(e.clientX - rect.left, e.clientY - rect.top);
@@ -744,17 +772,24 @@ mapContainer.addEventListener('pointerdown', e => {
   mapContainer.setPointerCapture(e.pointerId);
 });
 
+mapContainer.addEventListener('pointerup', e => {
+  if (e.pointerType === 'touch') activeTouches = Math.max(0, activeTouches - 1);
+  isPanning = false;
+  mapContainer.classList.remove('dragging');
+});
+
+mapContainer.addEventListener('pointercancel', e => {
+  if (e.pointerType === 'touch') activeTouches = Math.max(0, activeTouches - 1);
+  isPanning = false;
+  mapContainer.classList.remove('dragging');
+});
+
 mapContainer.addEventListener('pointermove', e => {
-  if (!isPanning) return;
+  if (!isPanning || activeTouches >= 2) return;
   offsetX = e.clientX - panStart.x;
   offsetY = e.clientY - panStart.y;
   applyTransform(); renderPins(); renderZones();
   if (drawingZone) renderZonePreview();
-});
-
-mapContainer.addEventListener('pointerup', () => {
-  isPanning = false;
-  mapContainer.classList.remove('dragging');
 });
 
 mapContainer.addEventListener('click', e => {
@@ -775,32 +810,62 @@ mapContainer.addEventListener('wheel', e => {
   const rect = mapContainer.getBoundingClientRect();
   const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
   const delta = e.deltaY > 0 ? 0.9 : 1.1;
-  const ns = Math.min(4, Math.max(0.25, scale * delta));
+  const ns = Math.min(4, Math.max(minScale, scale * delta));
   offsetX = cx - (cx - offsetX) * (ns / scale);
   offsetY = cy - (cy - offsetY) * (ns / scale);
   scale = ns; applyTransform(); renderPins(); renderZones();
 }, { passive: false });
 
+// Touch zoom — pointer eventlerinden bağımsız, sadece 2 parmak
 mapContainer.addEventListener('touchstart', e => {
   if (e.touches.length === 2) {
-    lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    isPanning = false;
+    lastTouchDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    lastTouchMid = {
+      x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+    };
   }
 }, { passive: true });
 
 mapContainer.addEventListener('touchmove', e => {
   if (e.touches.length !== 2) return;
   e.preventDefault();
-  const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-  const mid = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+  const dist = Math.hypot(
+    e.touches[0].clientX - e.touches[1].clientX,
+    e.touches[0].clientY - e.touches[1].clientY
+  );
+  const mid = {
+    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+  };
   const rect = mapContainer.getBoundingClientRect();
   const cx = mid.x - rect.left, cy = mid.y - rect.top;
-  const delta = dist / lastTouchDist;
-  const ns = Math.min(4, Math.max(0.25, scale * delta));
+
+  // Zoom
+  const zoomDelta = dist / lastTouchDist;
+  const ns = Math.min(4, Math.max(minScale, scale * zoomDelta));
   offsetX = cx - (cx - offsetX) * (ns / scale);
   offsetY = cy - (cy - offsetY) * (ns / scale);
-  scale = ns; lastTouchDist = dist;
+  scale = ns;
+
+  // Pan (iki parmakla sürükleme)
+  if (lastTouchMid) {
+    offsetX += mid.x - lastTouchMid.x;
+    offsetY += mid.y - lastTouchMid.y;
+  }
+
+  lastTouchDist = dist;
+  lastTouchMid = mid;
   applyTransform(); renderPins(); renderZones();
 }, { passive: false });
+
+mapContainer.addEventListener('touchend', e => {
+  if (e.touches.length < 2) { lastTouchDist = null; lastTouchMid = null; }
+}, { passive: true });
 
 /* ---- PINS ---- */
 function renderPins() {
@@ -1054,6 +1119,7 @@ mapImg.onload = () => {
   const iw = mapImg.naturalWidth, ih = mapImg.naturalHeight;
   const cw = mapContainer.clientWidth, ch = mapContainer.clientHeight;
   scale = Math.min(cw / iw, ch / ih);
+  minScale = scale;
   offsetX = (cw - iw * scale) / 2;
   offsetY = (ch - ih * scale) / 2;
   applyTransform(); loadData(); renderPins(); renderZones();
