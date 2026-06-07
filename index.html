@@ -13,290 +13,214 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a1a; overflow: hidden; height: 100vh; }
-
     #app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
 
     /* MAP */
     #map-container {
       position: absolute; inset: 0;
-      background: #e8dcc8;
-      cursor: grab;
-      touch-action: none;
-      overflow: hidden;
+      background: #e8dcc8; cursor: grab;
+      touch-action: none; overflow: hidden;
     }
     #map-container.adding-pin { cursor: crosshair; }
     #map-container.drawing-zone { cursor: crosshair; }
     #map-container.dragging { cursor: grabbing; }
-    #map-img {
-      position: absolute; top: 0; left: 0;
-      transform-origin: 0 0;
-      user-select: none; pointer-events: none;
-    }
-    #pins-layer {
-      position: absolute; top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-    }
-    #zones-svg {
-      position: absolute; top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      overflow: visible;
-    }
+    #map-img { position: absolute; top: 0; left: 0; transform-origin: 0 0; user-select: none; pointer-events: none; }
+    #pins-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #zones-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 
     /* PIN */
-    .pin {
-      position: absolute;
-      transform: translate(-50%, -100%);
-      pointer-events: all; cursor: pointer; z-index: 10;
-    }
-    .pin-icon {
-      width: 28px; height: 28px;
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      border: 2px solid rgba(255,255,255,0.9);
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-      transition: transform 0.15s;
-    }
+    .pin { position: absolute; transform: translate(-50%, -100%); pointer-events: all; cursor: pointer; z-index: 10; }
+    .pin-icon { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.25); transition: transform 0.15s; }
     .pin:hover .pin-icon { transform: rotate(-45deg) scale(1.2); }
     .pin-dot { width: 8px; height: 8px; background: rgba(255,255,255,0.9); border-radius: 50%; transform: rotate(45deg); }
-    .pin-label {
-      position: absolute; top: -4px; left: 32px;
-      background: white; border: 1px solid #e0d8cc;
-      border-radius: 8px; padding: 4px 8px;
-      font-size: 11px; font-weight: 600; color: #2c2c2a;
-      white-space: nowrap; pointer-events: none;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-    }
+    .pin-label { position: absolute; top: -4px; left: 32px; background: white; border: 1px solid #e0d8cc; border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 600; color: #2c2c2a; white-space: nowrap; pointer-events: none; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
     .pin-last-water { display: block; font-size: 10px; font-weight: 400; color: #888; margin-top: 1px; }
 
-    /* CORNER TRIGGERS */
-    #top-left-trigger {
-      position: absolute; top: 0; left: 0; z-index: 100;
-      width: 52px; height: 52px;
-      display: flex; align-items: center; justify-content: center;
+    /* OVERLAY PANELS — shared */
+    .overlay-pill {
+      position: absolute; z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
     }
-    #top-left-btn {
-      width: 36px; height: 36px;
-      background: white; border-radius: 12px;
-      border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-      margin: 10px;
-      transition: background 0.2s;
-    }
-    #top-left-btn:active { background: #f0ece4; }
-    #top-left-btn i { font-size: 18px; color: #2c2c2a; }
 
-    #bottom-right-trigger {
-      position: absolute; bottom: 0; right: 0; z-index: 100;
-      width: 64px; height: 64px;
-      display: flex; align-items: flex-end; justify-content: flex-end;
-    }
-    #bottom-right-btn {
-      width: 44px; height: 44px;
-      background: #1D9E75; border-radius: 14px;
-      border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 12px rgba(29,158,117,0.4);
-      margin: 10px;
-      transition: background 0.2s, transform 0.2s;
-    }
-    #bottom-right-btn:active { transform: scale(0.95); }
-    #bottom-right-btn i { font-size: 20px; color: white; }
+    /* SAAT — sol üst */
+    #clock-panel { top: 12px; left: 12px; }
+    #clock-full { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; }
+    #clock-mini { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; cursor: pointer; }
+    #clock-mini i { font-size: 18px; color: #BA7517; }
+    #clock-panel.mini #clock-full { display: none; }
+    #clock-panel.mini #clock-mini { display: flex; }
+    .clock-icon { font-size: 20px; color: #BA7517; }
+    .clock-time { font-size: 18px; font-weight: 600; color: #2c2c2a; line-height: 1; }
+    .clock-greet { font-size: 10px; color: #888; margin-top: 2px; }
 
-    /* TOP BAR (hidden by default) */
-    #top-bar {
-      position: absolute; top: 0; left: 0; right: 0; z-index: 90;
-      background: white;
-      border-bottom: 1px solid #e0d8cc;
-      padding: 10px 12px 10px 56px;
-      display: flex; align-items: center; gap: 6px;
-      transform: translateY(-100%);
-      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-    }
-    #top-bar.open { transform: translateY(0); }
-    .top-bar-btn {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 6px 10px; border-radius: 10px;
-      border: none; background: transparent; cursor: pointer;
+    /* HAVA — alt orta */
+    #weather-panel { bottom: 72px; left: 50%; transform: translateX(-50%); }
+    #weather-full { display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+    #weather-mini { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; cursor: pointer; }
+    #weather-mini i { font-size: 18px; color: #BA7517; }
+    #weather-panel.mini #weather-full { display: none; }
+    #weather-panel.mini #weather-mini { display: flex; }
+    #weather-panel.mini { transform: translateX(-50%); }
+    .weather-icon { font-size: 22px; color: #BA7517; }
+    .weather-date { font-size: 11px; font-weight: 500; color: #2c2c2a; }
+    .weather-sub { font-size: 10px; color: #888; margin-top: 1px; }
+    .weather-temp { font-size: 16px; font-weight: 600; color: #2c2c2a; margin-left: 4px; }
+
+    /* ARAÇ ÇANTASI — sol, dikey */
+    #tools-panel { top: 60px; left: 12px; padding: 6px; }
+    #tools-full { display: flex; flex-direction: column; gap: 2px; }
+    #tools-mini { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; cursor: pointer; }
+    #tools-mini i { font-size: 18px; color: #2c2c2a; }
+    #tools-panel.mini #tools-full { display: none; }
+    #tools-panel.mini #tools-mini { display: flex; }
+    .tool-btn {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; border: none; background: transparent;
       transition: background 0.15s;
-      flex-shrink: 0;
     }
-    .top-bar-btn:hover { background: #f5f0e8; }
-    .top-bar-btn.active { background: #e1f5ee; }
-    .top-bar-btn i { font-size: 20px; color: #2c2c2a; }
-    .top-bar-btn.active i { color: #1D9E75; }
-    .top-bar-btn span { font-size: 9px; color: #888; white-space: nowrap; }
-    .top-bar-btn.active span { color: #1D9E75; }
+    .tool-btn:hover { background: rgba(0,0,0,0.06); }
+    .tool-btn.active { background: #1D9E75; }
+    .tool-btn i { font-size: 18px; color: #2c2c2a; }
+    .tool-btn.active i { color: white; }
+    .tool-sep { height: 0.5px; background: rgba(0,0,0,0.1); margin: 2px 4px; }
+    #tools-toggle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: transparent; }
+    #tools-toggle i { font-size: 14px; color: #888; }
 
-    /* RADIAL MENU (bottom right) */
-    #radial-menu {
-      position: absolute; bottom: 0; right: 0; z-index: 90;
-      width: 220px; height: 220px;
-      pointer-events: none;
+    /* SAĞ MENÜ */
+    #menu-panel { top: 12px; right: 12px; padding: 6px; }
+    #menu-full { display: flex; flex-direction: column; gap: 2px; }
+    #menu-mini { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; cursor: pointer; }
+    #menu-mini i { font-size: 18px; color: #2c2c2a; }
+    #menu-panel.mini #menu-full { display: none; }
+    #menu-panel.mini #menu-mini { display: flex; }
+    .menu-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; border-radius: 10px;
+      cursor: pointer; border: none; background: transparent;
+      transition: background 0.15s; white-space: nowrap;
     }
-    #radial-menu.open { pointer-events: all; }
-    .radial-item {
-      position: absolute;
-      width: 44px; height: 44px;
-      background: white; border-radius: 14px;
-      border: none; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
-      opacity: 0; transform: scale(0.5);
-      transition: opacity 0.25s, transform 0.25s;
-      pointer-events: none;
-    }
-    .radial-item i { font-size: 18px; color: #2c2c2a; }
-    .radial-item span { font-size: 8px; color: #888; }
-    .radial-item.active { background: #e1f5ee; }
-    .radial-item.active i { color: #1D9E75; }
-    #radial-menu.open .radial-item {
-      opacity: 1; transform: scale(1);
-      pointer-events: all;
-    }
-    #radial-menu.open .radial-item:nth-child(1) { transition-delay: 0.05s; }
-    #radial-menu.open .radial-item:nth-child(2) { transition-delay: 0.1s; }
-    #radial-menu.open .radial-item:nth-child(3) { transition-delay: 0.15s; }
-    #radial-menu.open .radial-item:nth-child(4) { transition-delay: 0.2s; }
+    .menu-btn:hover { background: rgba(0,0,0,0.06); }
+    .menu-btn i { font-size: 16px; color: #2c2c2a; }
+    .menu-btn span { font-size: 12px; font-weight: 500; color: #2c2c2a; }
+    #menu-toggle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: transparent; }
+    #menu-toggle i { font-size: 14px; color: #888; }
 
-    /* Zone list panel (slides up from bottom) */
-    #zone-panel {
-      position: absolute; bottom: 0; left: 0; right: 0; z-index: 80;
-      background: white; border-radius: 20px 20px 0 0;
-      padding: 12px 16px 32px;
-      transform: translateY(100%);
-      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-      max-height: 60vh; overflow-y: auto;
-      box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
-    }
-    #zone-panel.open { transform: translateY(0); }
-    .panel-handle { width: 36px; height: 4px; background: #e0d8cc; border-radius: 2px; margin: 0 auto 16px; }
-    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .panel-title { font-size: 15px; font-weight: 600; color: #2c2c2a; }
-    .panel-close { width: 28px; height: 28px; background: #f5f0e8; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .panel-close i { font-size: 14px; color: #888; }
-    .zone-list-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 12px; border-radius: 12px;
-      cursor: pointer; transition: background 0.15s;
-      margin-bottom: 4px;
-    }
-    .zone-list-item:hover { background: #f5f0e8; }
-    .zone-color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-    .zone-list-name { font-size: 14px; font-weight: 500; color: #2c2c2a; flex: 1; }
-    .zone-list-meta { font-size: 11px; color: #888; }
-    .zone-empty { font-size: 13px; color: #bbb; text-align: center; padding: 24px 0; font-style: italic; }
-
-    /* DRAWING TOOLBAR */
+    /* ÇIZIM TOOLBAR */
     #drawing-toolbar {
-      position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-      display: none; align-items: center; gap: 8px;
-      background: rgba(255,255,255,0.96); border-radius: 20px;
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      display: none; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.95); border-radius: 16px;
       padding: 6px 10px;
       box-shadow: 0 2px 16px rgba(0,0,0,0.15);
-      z-index: 95; white-space: nowrap;
+      z-index: 110; white-space: nowrap;
       backdrop-filter: blur(8px);
     }
     #drawing-toolbar.visible { display: flex; }
-    #drawing-hint {
-      font-size: 12px; font-weight: 500; color: #2c2c2a;
-      padding: 0 6px;
-    }
+    #drawing-hint { font-size: 12px; font-weight: 500; color: #2c2c2a; padding: 0 4px; }
     #undo-zone-btn, #cancel-zone-btn {
-      width: 32px; height: 32px; border-radius: 10px;
+      width: 30px; height: 30px; border-radius: 8px;
       border: none; background: #f5f0e8; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
     }
-    #undo-zone-btn i, #cancel-zone-btn i { font-size: 16px; color: #2c2c2a; }
-    #cancel-zone-btn i { color: #E24B4A; }
+    #undo-zone-btn i { font-size: 15px; color: #2c2c2a; }
+    #cancel-zone-btn i { font-size: 15px; color: #E24B4A; }
     #finish-zone-btn {
       background: #1D9E75; color: white;
-      padding: 6px 14px; border-radius: 14px;
+      padding: 6px 12px; border-radius: 12px;
       font-size: 12px; font-weight: 600; border: none; cursor: pointer;
     }
 
-    /* MODAL */
+    /* SOHBET */
+    #chat-bar {
+      position: absolute; bottom: 12px; left: 12px; right: 12px;
+      z-index: 100; display: flex; align-items: center; gap: 8px;
+    }
+    #chat-input-wrap {
+      flex: 1; background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-radius: 24px; display: flex; align-items: center;
+      padding: 8px 14px; gap: 8px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+    }
+    #chat-input-wrap i { font-size: 16px; color: #888; flex-shrink: 0; }
+    #chat-input {
+      flex: 1; border: none; background: transparent;
+      font-size: 14px; color: #2c2c2a; outline: none;
+      font-family: inherit;
+    }
+    #chat-input::placeholder { color: #aaa; }
+    #chat-send {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #1D9E75; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(29,158,117,0.4);
+      flex-shrink: 0;
+    }
+    #chat-send i { font-size: 18px; color: white; }
+
+    /* SOHBET PANELİ */
+    #chat-panel {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 150;
+      background: white; border-radius: 24px 24px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.15);
+    }
+    #chat-panel.open { transform: translateY(0); }
+    .chat-panel-handle { width: 36px; height: 4px; background: #e0d8cc; border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+    .chat-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; flex-shrink: 0; }
+    .chat-panel-title { font-size: 15px; font-weight: 600; color: #2c2c2a; display: flex; align-items: center; gap: 8px; }
+    .chat-panel-title i { font-size: 16px; color: #1D9E75; }
+    .chat-close { width: 28px; height: 28px; border-radius: 8px; background: #f5f0e8; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .chat-close i { font-size: 14px; color: #888; }
+    #chat-messages { flex: 1; overflow-y: auto; padding: 8px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
+    .chat-msg { max-width: 85%; padding: 8px 12px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+    .chat-msg.user { background: #1D9E75; color: white; align-self: flex-end; border-radius: 14px 14px 4px 14px; }
+    .chat-msg.ai { background: #f5f0e8; color: #2c2c2a; align-self: flex-start; border-radius: 14px 14px 14px 4px; }
+    .chat-msg.system { background: #e1f5ee; color: #0f6e56; align-self: center; font-size: 11px; border-radius: 8px; padding: 4px 10px; }
+    .chat-input-area { padding: 10px 16px 24px; flex-shrink: 0; display: flex; gap: 8px; border-top: 1px solid #f0ece4; }
+    .chat-input-area input { flex: 1; padding: 10px 14px; border-radius: 20px; border: 1px solid #e0d8cc; background: #f5f0e8; font-size: 14px; color: #2c2c2a; outline: none; font-family: inherit; }
+    .chat-input-area button { width: 40px; height: 40px; border-radius: 50%; background: #1D9E75; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .chat-input-area button i { font-size: 17px; color: white; }
+
+    /* ZONE / PIN MODAL */
     #modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.45);
-      z-index: 200; display: none;
-      align-items: flex-end; justify-content: center;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      z-index: 200; display: none; align-items: flex-end; justify-content: center;
       padding-bottom: env(safe-area-inset-bottom);
     }
     #modal-overlay.open { display: flex; }
-    #modal {
-      background: white; border-radius: 20px 20px 0 0;
-      padding: 20px 20px 36px;
-      width: 100%; max-width: 480px;
-    }
-    .modal-handle { width: 36px; height: 4px; background: #e0d8cc; border-radius: 2px; margin: 0 auto 16px; }
+    #modal { background: white; border-radius: 24px 24px 0 0; padding: 0 20px 36px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; }
+    .modal-handle { width: 36px; height: 4px; background: #e0d8cc; border-radius: 2px; margin: 12px auto 16px; }
     #modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #2c2c2a; }
-    #modal input[type="text"], #modal input[type="number"] {
-      width: 100%; padding: 11px 12px;
-      border-radius: 10px; border: 1px solid #d0c8bc;
-      background: #f5f0e8; color: #2c2c2a;
-      font-size: 15px; margin-bottom: 14px;
-      font-family: inherit;
-    }
+    #modal input[type="text"], #modal input[type="number"] { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #d0c8bc; background: #f5f0e8; color: #2c2c2a; font-size: 15px; margin-bottom: 14px; font-family: inherit; }
     .modal-section-label { font-size: 12px; color: #888; margin-bottom: 8px; }
     .modal-colors { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-    .modal-color-btn {
-      width: 30px; height: 30px; border-radius: 50%;
-      border: 2px solid transparent; cursor: pointer;
-      transition: transform 0.15s;
-    }
+    .modal-color-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.15s; }
     .modal-color-btn:hover { transform: scale(1.1); }
     .modal-color-btn.active { border-color: #2c2c2a; }
-
-    /* Zone folder tabs */
-    .zone-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #f0ece4; padding-bottom: 0; }
-    .zone-tab {
-      flex: 1; padding: 8px 4px; text-align: center;
-      font-size: 12px; font-weight: 500; color: #888;
-      border: none; background: transparent; cursor: pointer;
-      border-bottom: 2px solid transparent; margin-bottom: -1px;
-      transition: color 0.15s, border-color 0.15s;
-    }
+    .zone-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #f0ece4; }
+    .zone-tab { flex: 1; padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 500; color: #888; border: none; background: transparent; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
     .zone-tab.active { color: #1D9E75; border-bottom-color: #1D9E75; }
     .zone-tab-content { display: none; }
     .zone-tab-content.active { display: block; }
-
-    /* Water log */
     #water-section label { font-size: 12px; color: #888; display: block; margin-bottom: 6px; }
-    #log-water-btn {
-      width: 100%; padding: 11px;
-      border-radius: 10px; background: #1D9E75; color: white;
-      border: none; font-size: 14px; font-weight: 600;
-      cursor: pointer; margin-bottom: 12px; font-family: inherit;
-    }
+    #log-water-btn { width: 100%; padding: 11px; border-radius: 10px; background: #1D9E75; color: white; border: none; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 12px; font-family: inherit; }
     #water-history { font-size: 12px; color: #888; }
-    .water-entry {
-      padding: 6px 0; border-bottom: 1px solid #f5f0e8;
-      display: flex; justify-content: space-between;
-    }
-
-    /* Tasks */
+    .water-entry { padding: 6px 0; border-bottom: 1px solid #f5f0e8; display: flex; justify-content: space-between; }
     .task-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
     .task-input-row input { flex: 1; margin-bottom: 0; }
-    .task-add-btn {
-      padding: 11px 14px; border-radius: 10px;
-      background: #1D9E75; color: white; border: none;
-      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
-    }
-    .task-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 0; border-bottom: 1px solid #f5f0e8;
-    }
-    .task-check {
-      width: 20px; height: 20px; border-radius: 6px;
-      border: 1.5px solid #d0c8bc; background: white;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: background 0.15s, border-color 0.15s;
-    }
+    .task-add-btn { padding: 11px 14px; border-radius: 10px; background: #1D9E75; color: white; border: none; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .task-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f0e8; }
+    .task-check { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid #d0c8bc; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; }
     .task-check.done { background: #1D9E75; border-color: #1D9E75; }
     .task-check.done::after { content: ''; display: block; width: 5px; height: 9px; border: 2px solid white; border-top: none; border-left: none; transform: rotate(45deg) translate(-1px,-1px); }
     .task-text { font-size: 13px; color: #2c2c2a; flex: 1; }
@@ -304,71 +228,97 @@
     .task-del { background: none; border: none; color: #ddd; cursor: pointer; font-size: 16px; padding: 2px 4px; }
     .task-del:hover { color: #E24B4A; }
     .task-type-toggle { display: flex; gap: 6px; margin-bottom: 12px; }
-    .task-type-btn {
-      padding: 5px 12px; border-radius: 20px; border: 1px solid #d0c8bc;
-      background: #f5f0e8; color: #888; font-size: 11px; cursor: pointer;
-      transition: all 0.15s;
-    }
+    .task-type-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid #d0c8bc; background: #f5f0e8; color: #888; font-size: 11px; cursor: pointer; transition: all 0.15s; }
     .task-type-btn.active { background: #e1f5ee; color: #0f6e56; border-color: #1D9E75; }
-
     .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
-    .modal-btns button {
-      flex: 1; padding: 11px; border-radius: 10px;
-      border: 1px solid #d0c8bc; font-size: 14px; cursor: pointer;
-      background: #f5f0e8; color: #2c2c2a; font-family: inherit;
-    }
+    .modal-btns button { flex: 1; padding: 11px; border-radius: 10px; border: 1px solid #d0c8bc; font-size: 14px; cursor: pointer; background: #f5f0e8; color: #2c2c2a; font-family: inherit; }
     .btn-delete { background: #fef0ee !important; color: #c0392b !important; border-color: #f5c6c0 !important; }
     .btn-save { background: #1D9E75 !important; color: white !important; border-color: #1D9E75 !important; }
 
-    /* Notification dot */
-    .notif-dot {
-      position: absolute; top: 6px; right: 6px;
-      width: 8px; height: 8px; background: #E24B4A;
-      border-radius: 50%; border: 1.5px solid white;
+    /* ZONE / GÖREV PANELİ */
+    #side-panel {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 140;
+      background: white; border-radius: 24px 24px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      max-height: 65vh; display: flex; flex-direction: column;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.12);
     }
+    #side-panel.open { transform: translateY(0); }
+    .side-panel-handle { width: 36px; height: 4px; background: #e0d8cc; border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+    .side-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; flex-shrink: 0; }
+    .side-panel-title { font-size: 15px; font-weight: 600; color: #2c2c2a; }
+    .side-panel-close { width: 28px; height: 28px; border-radius: 8px; background: #f5f0e8; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .side-panel-close i { font-size: 14px; color: #888; }
+    #side-panel-body { flex: 1; overflow-y: auto; padding: 0 16px 24px; }
+    .zone-list-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; cursor: pointer; transition: background 0.15s; margin-bottom: 4px; }
+    .zone-list-item:hover { background: #f5f0e8; }
+    .zone-color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .zone-list-name { font-size: 14px; font-weight: 500; color: #2c2c2a; flex: 1; }
+    .zone-list-meta { font-size: 11px; color: #888; }
+    .panel-empty { font-size: 13px; color: #bbb; text-align: center; padding: 32px 0; font-style: italic; }
   </style>
 </head>
 <body>
 <div id="app">
-
   <div id="map-container">
     <img id="map-img" alt="Pastoral Vadi haritası" draggable="false" />
     <svg id="zones-svg"></svg>
     <div id="pins-layer"></div>
   </div>
 
-  <!-- Sol üst köşe — üst bar açar -->
-  <div id="top-left-trigger">
-    <button id="top-left-btn" title="Menü">
-      <i class="ti ti-menu-2"></i>
-    </button>
+  <!-- SAAT — sol üst -->
+  <div class="overlay-pill" id="clock-panel">
+    <div id="clock-full">
+      <i class="ti ti-sun clock-icon" id="clock-icon" aria-hidden="true"></i>
+      <div>
+        <div class="clock-time" id="clock-time">--:--</div>
+        <div class="clock-greet" id="clock-greet">Günaydın</div>
+      </div>
+    </div>
+    <div id="clock-mini"><i class="ti ti-sun" aria-hidden="true"></i></div>
   </div>
 
-  <!-- Üst bar (gizli) -->
-  <div id="top-bar">
-    <button class="top-bar-btn active" id="tb-map" title="Harita">
-      <i class="ti ti-map-2"></i>
-      <span>Harita</span>
-    </button>
-    <button class="top-bar-btn" id="tb-pin" title="Pin ekle">
-      <i class="ti ti-map-pin-plus"></i>
-      <span>Pin ekle</span>
-    </button>
-    <button class="top-bar-btn" id="tb-zone" title="Zone çiz">
-      <i class="ti ti-vector-triangle"></i>
-      <span>Zone çiz</span>
-    </button>
-    <button class="top-bar-btn" id="tb-water" title="Sulama">
-      <i class="ti ti-droplet"></i>
-      <span>Sulama</span>
-    </button>
-    <button class="top-bar-btn" id="tb-tasks" title="Görevler">
-      <i class="ti ti-clipboard-list"></i>
-      <span>Görevler</span>
-    </button>
+  <!-- ARAÇ ÇANTASI — sol orta -->
+  <div class="overlay-pill" id="tools-panel">
+    <div id="tools-full">
+      <button class="tool-btn active" id="tb-map" title="Gezin"><i class="ti ti-hand-move"></i></button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" id="tb-pin" title="Pin ekle"><i class="ti ti-map-pin-plus"></i></button>
+      <button class="tool-btn" id="tb-zone" title="Zone çiz"><i class="ti ti-vector-triangle"></i></button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" id="tools-toggle" title="Gizle"><i class="ti ti-chevron-up"></i></button>
+    </div>
+    <div id="tools-mini"><i class="ti ti-tool" aria-hidden="true"></i></div>
   </div>
 
-  <!-- Çizim araç çubuğu -->
+  <!-- SAĞ MENÜ -->
+  <div class="overlay-pill" id="menu-panel">
+    <div id="menu-full">
+      <button class="menu-btn" id="menu-zones"><i class="ti ti-polygon"></i><span>Zonlar</span></button>
+      <button class="menu-btn" id="menu-tasks"><i class="ti ti-clipboard-list"></i><span>Görevler</span></button>
+      <button class="menu-btn" id="menu-notes"><i class="ti ti-notes"></i><span>Notlar</span></button>
+      <button class="menu-btn" id="menu-settings"><i class="ti ti-settings"></i><span>Ayarlar</span></button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" id="menu-toggle" title="Gizle" style="align-self:center;"><i class="ti ti-chevron-up"></i></button>
+    </div>
+    <div id="menu-mini"><i class="ti ti-menu-2" aria-hidden="true"></i></div>
+  </div>
+
+  <!-- HAVA DURUMU — alt orta -->
+  <div class="overlay-pill" id="weather-panel">
+    <div id="weather-full">
+      <i class="ti ti-cloud-sun weather-icon" aria-hidden="true"></i>
+      <div>
+        <div class="weather-date" id="weather-date">Pazartesi, 9 Haziran 2026</div>
+        <div class="weather-sub">Fethiye — Güneşli</div>
+      </div>
+      <div class="weather-temp">28°</div>
+    </div>
+    <div id="weather-mini"><i class="ti ti-cloud-sun" aria-hidden="true"></i></div>
+  </div>
+
+  <!-- ÇIZIM TOOLBAR -->
   <div id="drawing-toolbar">
     <button id="undo-zone-btn"><i class="ti ti-arrow-back-up"></i></button>
     <div id="drawing-hint">Haritaya dokun — nokta ekle</div>
@@ -376,61 +326,45 @@
     <button id="finish-zone-btn">Kapat ✓</button>
   </div>
 
-  <!-- Sağ alt köşe — radyal menüyü açar -->
-  <div id="bottom-right-trigger">
-    <button id="bottom-right-btn" title="Zone listesi">
-      <i class="ti ti-layout-grid"></i>
-    </button>
-  </div>
-
-  <!-- Radyal menü -->
-  <div id="radial-menu">
-    <button class="radial-item" id="ri-zones" style="bottom:66px; right:10px;">
-      <i class="ti ti-polygon"></i>
-      <span>Zonlar</span>
-    </button>
-    <button class="radial-item" id="ri-water" style="bottom:116px; right:10px;">
-      <i class="ti ti-droplet"></i>
-      <span>Sulama</span>
-    </button>
-    <button class="radial-item" id="ri-tasks" style="bottom:66px; right:60px;">
-      <i class="ti ti-clipboard-list"></i>
-      <span>Görevler</span>
-    </button>
-    <button class="radial-item" id="ri-settings" style="bottom:116px; right:60px;">
-      <i class="ti ti-settings"></i>
-      <span>Ayarlar</span>
-    </button>
-  </div>
-
-  <!-- Zone listesi paneli -->
-  <div id="zone-panel">
-    <div class="panel-handle"></div>
-    <div class="panel-header">
-      <span class="panel-title">Zonlar</span>
-      <button class="panel-close" id="zone-panel-close"><i class="ti ti-x"></i></button>
+  <!-- SOHBET BUTONU -->
+  <div id="chat-bar">
+    <div id="chat-input-wrap">
+      <i class="ti ti-message-circle" aria-hidden="true"></i>
+      <input type="text" id="chat-quick" placeholder="Eren 34 yumurta topladı..." />
     </div>
-    <div id="zone-list-content"></div>
+    <button id="chat-send"><i class="ti ti-arrow-up"></i></button>
   </div>
 
-  <!-- Modal -->
+  <!-- SOHBET PANELİ -->
+  <div id="chat-panel">
+    <div class="chat-panel-handle"></div>
+    <div class="chat-panel-header">
+      <div class="chat-panel-title"><i class="ti ti-message-circle" aria-hidden="true"></i>Notlar & Kayıtlar</div>
+      <button class="chat-close" id="chat-panel-close"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="chat-messages">
+      <div class="chat-msg system">Merhaba! Çiftlik kayıtlarını buraya yaz.</div>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="chat-panel-input" placeholder="Bir not veya kayıt ekle..." />
+      <button id="chat-panel-send"><i class="ti ti-arrow-up"></i></button>
+    </div>
+  </div>
+
+  <!-- ZONE/PIN MODAL -->
   <div id="modal-overlay">
     <div id="modal">
       <div class="modal-handle"></div>
       <h3 id="modal-title">Bölge</h3>
       <input type="text" id="pin-name-input" placeholder="Bölge adı" maxlength="40" />
-
       <div class="modal-section-label">Renk</div>
       <div class="modal-colors" id="modal-colors"></div>
-
-      <!-- Zone klasörü sekmeleri (sadece zone için gösterilir) -->
       <div id="zone-folder-section" style="display:none;">
         <div class="zone-tabs">
           <button class="zone-tab active" data-tab="water">Sulama</button>
           <button class="zone-tab" data-tab="tasks">Görevler</button>
           <button class="zone-tab" data-tab="archive">Arşiv</button>
         </div>
-
         <div class="zone-tab-content active" id="tab-water">
           <div id="water-section">
             <label>Sulama kaydı ekle (dakika)</label>
@@ -439,7 +373,6 @@
             <div id="water-history"></div>
           </div>
         </div>
-
         <div class="zone-tab-content" id="tab-tasks">
           <div class="task-type-toggle">
             <button class="task-type-btn active" data-type="routine">Rutin</button>
@@ -451,17 +384,11 @@
           </div>
           <div id="task-list"></div>
         </div>
-
         <div class="zone-tab-content" id="tab-archive">
-          <div id="archive-list" style="font-size:13px; color:#bbb; text-align:center; padding:20px 0; font-style:italic;">Henüz arşiv kaydı yok</div>
+          <div id="archive-list" style="font-size:13px;color:#bbb;text-align:center;padding:20px 0;font-style:italic;">Henüz arşiv kaydı yok</div>
         </div>
       </div>
-
-      <!-- Pin için sulama (zone değilse) -->
-      <div id="pin-water-section">
-        <div id="pin-water-history"></div>
-      </div>
-
+      <div id="pin-water-section"></div>
       <div class="modal-btns">
         <button class="btn-delete" id="modal-delete" style="display:none">Sil</button>
         <button id="modal-cancel">İptal</button>
@@ -470,32 +397,30 @@
     </div>
   </div>
 
+  <!-- ZONE/GÖREV YAN PANELİ -->
+  <div id="side-panel">
+    <div class="side-panel-handle"></div>
+    <div class="side-panel-header">
+      <span class="side-panel-title" id="side-panel-title">Zonlar</span>
+      <button class="side-panel-close" id="side-panel-close"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="side-panel-body"></div>
+  </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'pastoral_vadi_v3';
+const STORAGE_KEY = 'pastoral_vadi_v4';
 const COLORS = ['#1D9E75','#378ADD','#D85A30','#D4537E','#BA7517','#7F77DD','#888780','#E24B4A'];
 const MAP_URL = 'harita.jpeg';
 
-let pins = [];
-let zones = [];
-let minScale = 0.25;
-let addingMode = false;
-let drawingZone = false;
-let zonePoints = [];
-let currentZoneColor = '#1D9E75';
-let editingPinId = null;
-let editingZoneId = null;
-let modalColor = '#1D9E75';
-let activeTaskType = 'routine';
+let pins = [], zones = [], notes = [];
+let addingMode = false, drawingZone = false, zonePoints = [];
+let editingPinId = null, editingZoneId = null;
+let modalColor = '#1D9E75', activeTaskType = 'routine';
 let scale = 1, offsetX = 0, offsetY = 0;
 let isPanning = false, panStart = null;
-let pinDragging = null;
-let lastTouchDist = null;
-let lastTouchMid = null;
-let topBarOpen = false;
-let radialOpen = false;
-let zonePanelOpen = false;
+let pinDragging = null, lastTouchDist = null, lastTouchMid = null;
+let activeTouches = 0, minScale = 0.25;
 
 const mapContainer = document.getElementById('map-container');
 const mapImg = document.getElementById('map-img');
@@ -507,632 +432,500 @@ const modalDelete = document.getElementById('modal-delete');
 const modalColors = document.getElementById('modal-colors');
 const waterDuration = document.getElementById('water-duration');
 const waterHistory = document.getElementById('water-history');
-const drawingHint = document.getElementById('drawing-hint');
-const finishZoneBtn = document.getElementById('finish-zone-btn');
-const topBar = document.getElementById('top-bar');
-const radialMenu = document.getElementById('radial-menu');
-const zonePanel = document.getElementById('zone-panel');
+const drawingToolbar = document.getElementById('drawing-toolbar');
+const sidePanel = document.getElementById('side-panel');
+const chatPanel = document.getElementById('chat-panel');
 
+/* ---- DATA ---- */
 function loadData() {
   try {
     const d = localStorage.getItem(STORAGE_KEY);
-    if (d) { const p = JSON.parse(d); pins = p.pins || []; zones = p.zones || []; }
-  } catch(e) { pins = []; zones = []; }
+    if (d) { const p = JSON.parse(d); pins = p.pins||[]; zones = p.zones||[]; notes = p.notes||[]; }
+  } catch(e) { pins=[]; zones=[]; notes=[]; }
 }
-
 function saveData() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ pins, zones })); } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({pins,zones,notes})); } catch(e) {}
 }
-
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2); }
 function timeAgo(ts) {
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60000);
-  const h = Math.floor(m / 60);
-  const d = Math.floor(h / 24);
-  if (d > 0) return d + ' gün önce';
-  if (h > 0) return h + ' saat önce';
-  if (m > 0) return m + ' dakika önce';
+  const d=Date.now()-ts, m=Math.floor(d/60000), h=Math.floor(m/60), dy=Math.floor(h/24);
+  if(dy>0) return dy+' gün önce';
+  if(h>0) return h+' saat önce';
+  if(m>0) return m+' dakika önce';
   return 'az önce';
 }
 
-function applyTransform() {
-  mapImg.style.transform = `translate(${offsetX}px,${offsetY}px) scale(${scale})`;
+/* ---- SAAT ---- */
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  document.getElementById('clock-time').textContent = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  const icon = document.getElementById('clock-icon');
+  const mini = document.querySelector('#clock-mini i');
+  let greet, iconClass;
+  if(h>=5&&h<12) { greet='Günaydın'; iconClass='ti ti-sun'; }
+  else if(h>=12&&h<17) { greet='İyi öğleden sonra'; iconClass='ti ti-sun-high'; }
+  else if(h>=17&&h<21) { greet='İyi akşamlar'; iconClass='ti ti-sunset'; }
+  else { greet='İyi geceler'; iconClass='ti ti-moon'; }
+  document.getElementById('clock-greet').textContent = greet;
+  icon.className = iconClass+' clock-icon';
+  mini.className = iconClass;
 }
+updateClock(); setInterval(updateClock, 30000);
 
-function containerToMap(cx, cy) {
-  return { x: (cx - offsetX) / scale, y: (cy - offsetY) / scale };
+/* ---- TARİH ---- */
+const days = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const now = new Date();
+document.getElementById('weather-date').textContent = days[now.getDay()]+', '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+
+/* ---- PANEL GİZLE/AÇ ---- */
+function togglePanel(panelId) {
+  document.getElementById(panelId).classList.toggle('mini');
 }
+document.getElementById('clock-full').addEventListener('click', () => togglePanel('clock-panel'));
+document.getElementById('clock-mini').addEventListener('click', () => togglePanel('clock-panel'));
+document.getElementById('weather-full').addEventListener('click', () => togglePanel('weather-panel'));
+document.getElementById('weather-mini').addEventListener('click', () => togglePanel('weather-panel'));
+document.getElementById('tools-mini').addEventListener('click', () => togglePanel('tools-panel'));
+document.getElementById('tools-toggle').addEventListener('click', () => togglePanel('tools-panel'));
+document.getElementById('menu-mini').addEventListener('click', () => togglePanel('menu-panel'));
+document.getElementById('menu-toggle').addEventListener('click', () => togglePanel('menu-panel'));
 
-function mapToContainer(mx, my) {
-  return { x: mx * scale + offsetX, y: my * scale + offsetY };
+/* ---- ARAÇ ÇANTASI ---- */
+function setToolActive(id) {
+  ['tb-map','tb-pin','tb-zone'].forEach(t => document.getElementById(t).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
-
-/* ---- TOP BAR ---- */
-document.getElementById('top-left-btn').addEventListener('click', () => {
-  topBarOpen = !topBarOpen;
-  topBar.classList.toggle('open', topBarOpen);
-  if (topBarOpen && radialOpen) closeRadial();
-});
-
-function setTopBarMode(mode) {
-  document.querySelectorAll('.top-bar-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tb-' + mode).classList.add('active');
-}
-
 document.getElementById('tb-map').addEventListener('click', () => {
-  cancelDrawing(); cancelAddingPin();
-  setTopBarMode('map');
+  cancelDrawing(); cancelAddingPin(); setToolActive('tb-map');
 });
-
 document.getElementById('tb-pin').addEventListener('click', () => {
-  if (addingMode) { cancelAddingPin(); setTopBarMode('map'); }
-  else { addingMode = true; cancelDrawing(); mapContainer.classList.add('adding-pin'); setTopBarMode('pin'); }
+  if(addingMode) { cancelAddingPin(); setToolActive('tb-map'); }
+  else { addingMode=true; cancelDrawing(); mapContainer.classList.add('adding-pin'); setToolActive('tb-pin'); }
 });
-
 document.getElementById('tb-zone').addEventListener('click', () => {
-  if (drawingZone) { cancelDrawing(); setTopBarMode('map'); }
-  else { startDrawingZone(); setTopBarMode('zone'); }
+  if(drawingZone) { cancelDrawing(); setToolActive('tb-map'); }
+  else { startDrawingZone(); setToolActive('tb-zone'); }
 });
 
-document.getElementById('tb-water').addEventListener('click', () => {
-  setTopBarMode('water');
-  openZonePanel();
-});
+/* ---- SAĞ MENÜ ---- */
+document.getElementById('menu-zones').addEventListener('click', () => openSidePanel('zones'));
+document.getElementById('menu-tasks').addEventListener('click', () => openSidePanel('tasks'));
+document.getElementById('menu-notes').addEventListener('click', () => openSidePanel('notes'));
+document.getElementById('menu-settings').addEventListener('click', () => {});
 
-document.getElementById('tb-tasks').addEventListener('click', () => {
-  setTopBarMode('tasks');
-  openZonePanel();
-});
-
-/* ---- RADIAL MENU ---- */
-document.getElementById('bottom-right-btn').addEventListener('click', () => {
-  radialOpen = !radialOpen;
-  radialMenu.classList.toggle('open', radialOpen);
-  if (radialOpen && topBarOpen) { topBarOpen = false; topBar.classList.remove('open'); }
-});
-
-function closeRadial() { radialOpen = false; radialMenu.classList.remove('open'); }
-
-document.getElementById('ri-zones').addEventListener('click', () => { closeRadial(); openZonePanel(); });
-document.getElementById('ri-water').addEventListener('click', () => { closeRadial(); openZonePanel(); });
-document.getElementById('ri-tasks').addEventListener('click', () => { closeRadial(); openZonePanel(); });
-document.getElementById('ri-settings').addEventListener('click', () => { closeRadial(); });
-
-/* ---- ZONE PANEL ---- */
-function openZonePanel() {
-  zonePanelOpen = true;
-  zonePanel.classList.add('open');
-  renderZoneList();
-}
-
-document.getElementById('zone-panel-close').addEventListener('click', () => {
-  zonePanelOpen = false;
-  zonePanel.classList.remove('open');
-});
-
-function renderZoneList() {
-  const el = document.getElementById('zone-list-content');
-  if (zones.length === 0) {
-    el.innerHTML = '<div class="zone-empty">Henüz zone yok — haritada zone çiz</div>';
-    return;
-  }
-  el.innerHTML = zones.map(z => {
-    const taskCount = (z.tasks || []).filter(t => !t.done).length;
-    const lastWater = z.waterLog && z.waterLog.length ? timeAgo(z.waterLog[z.waterLog.length-1].ts) : 'Sulanmadı';
-    return `<div class="zone-list-item" data-zone-id="${z.id}">
-      <div class="zone-color-dot" style="background:${z.color}"></div>
-      <span class="zone-list-name">${z.name}</span>
-      <span class="zone-list-meta">${taskCount > 0 ? taskCount + ' görev · ' : ''}${lastWater}</span>
-    </div>`;
-  }).join('');
-  el.querySelectorAll('.zone-list-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const z = zones.find(z => z.id === item.dataset.zoneId);
-      if (z) { zonePanelOpen = false; zonePanel.classList.remove('open'); openZoneModal(z); }
+/* ---- YAN PANEL ---- */
+function openSidePanel(type) {
+  document.getElementById('side-panel-title').textContent = type==='zones'?'Zonlar':type==='tasks'?'Görevler':'Notlar';
+  const body = document.getElementById('side-panel-body');
+  if(type==='zones') {
+    if(!zones.length) { body.innerHTML='<p class="panel-empty">Henüz zone yok — haritada zone çiz</p>'; }
+    else body.innerHTML = zones.map(z=>{
+      const tw=(z.tasks||[]).filter(t=>!t.done).length;
+      const lw=z.waterLog&&z.waterLog.length?timeAgo(z.waterLog[z.waterLog.length-1].ts):'Sulanmadı';
+      return `<div class="zone-list-item" data-zid="${z.id}">
+        <div class="zone-color-dot" style="background:${z.color}"></div>
+        <span class="zone-list-name">${z.name}</span>
+        <span class="zone-list-meta">${tw?tw+' görev · ':''}${lw}</span>
+      </div>`;
+    }).join('');
+    body.querySelectorAll('.zone-list-item').forEach(el=>{
+      el.addEventListener('click',()=>{ const z=zones.find(z=>z.id===el.dataset.zid); if(z){closeSidePanel();openZoneModal(z);} });
     });
-  });
+  } else if(type==='tasks') {
+    const all = zones.flatMap(z=>(z.tasks||[]).map(t=>({...t,zoneName:z.name,zoneColor:z.color})));
+    const pending = all.filter(t=>!t.done);
+    if(!pending.length) body.innerHTML='<p class="panel-empty">Tamamlanmamış görev yok</p>';
+    else body.innerHTML = pending.map(t=>`
+      <div class="zone-list-item">
+        <div class="zone-color-dot" style="background:${t.zoneColor}"></div>
+        <div style="flex:1"><div class="zone-list-name">${t.text}</div><div class="zone-list-meta">${t.zoneName} · ${t.type==='routine'?'Rutin':'Tekil'}</div></div>
+      </div>`).join('');
+  } else {
+    if(!notes.length) body.innerHTML='<p class="panel-empty">Henüz not yok</p>';
+    else body.innerHTML = [...notes].reverse().map(n=>`
+      <div class="zone-list-item" style="flex-direction:column;align-items:flex-start;">
+        <div class="zone-list-name" style="font-weight:400;">${n.text}</div>
+        <div class="zone-list-meta">${timeAgo(n.ts)}</div>
+      </div>`).join('');
+  }
+  sidePanel.classList.add('open');
+}
+function closeSidePanel() { sidePanel.classList.remove('open'); }
+document.getElementById('side-panel-close').addEventListener('click', closeSidePanel);
+
+/* ---- SOHBET ---- */
+document.getElementById('chat-quick').addEventListener('focus', () => {
+  chatPanel.classList.add('open');
+  setTimeout(()=>document.getElementById('chat-panel-input').focus(),350);
+});
+document.getElementById('chat-quick').addEventListener('keydown', e => {
+  if(e.key==='Enter') sendChat();
+});
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-panel-close').addEventListener('click', () => chatPanel.classList.remove('open'));
+document.getElementById('chat-panel-send').addEventListener('click', sendChatPanel);
+document.getElementById('chat-panel-input').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChatPanel(); });
+
+function sendChat() {
+  const input = document.getElementById('chat-quick');
+  const text = input.value.trim(); if(!text) return;
+  chatPanel.classList.add('open');
+  addChatMsg(text,'user');
+  notes.push({id:uid(),text,ts:Date.now()});
+  saveData(); input.value='';
+  setTimeout(()=>{ addChatMsg('Kaydedildi — Notlar bölümünden görebilirsin.','ai'); },400);
+}
+function sendChatPanel() {
+  const input = document.getElementById('chat-panel-input');
+  const text = input.value.trim(); if(!text) return;
+  addChatMsg(text,'user');
+  notes.push({id:uid(),text,ts:Date.now()});
+  saveData(); input.value='';
+  setTimeout(()=>{ addChatMsg('Kaydedildi.','ai'); },400);
+}
+function addChatMsg(text, type) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className='chat-msg '+type; div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
 }
 
-/* ---- DRAWING ZONE ---- */
+/* ---- ZONE ÇIZME ---- */
 function startDrawingZone() {
-  drawingZone = true; zonePoints = [];
-  cancelAddingPin();
+  drawingZone=true; zonePoints=[]; cancelAddingPin();
   mapContainer.classList.add('drawing-zone');
-  document.getElementById('drawing-toolbar').classList.add('visible');
+  drawingToolbar.classList.add('visible');
   renderZonePreview();
 }
-
 function cancelDrawing() {
-  drawingZone = false; zonePoints = [];
+  drawingZone=false; zonePoints=[];
   mapContainer.classList.remove('drawing-zone');
-  document.getElementById('drawing-toolbar').classList.remove('visible');
+  drawingToolbar.classList.remove('visible');
   renderZonePreview();
 }
+function cancelAddingPin() { addingMode=false; mapContainer.classList.remove('adding-pin'); }
 
-function cancelAddingPin() {
-  addingMode = false;
-  mapContainer.classList.remove('adding-pin');
-  document.getElementById('tb-pin').classList.remove('active');
-}
-
-finishZoneBtn.addEventListener('click', finishZone);
-
-document.getElementById('undo-zone-btn').addEventListener('click', () => {
-  if (zonePoints.length > 0) { zonePoints.pop(); renderZonePreview(); }
-});
-
-document.getElementById('cancel-zone-btn').addEventListener('click', () => {
-  cancelDrawing(); setTopBarMode('map');
-});
+document.getElementById('finish-zone-btn').addEventListener('click', finishZone);
+document.getElementById('undo-zone-btn').addEventListener('click', ()=>{ if(zonePoints.length>0){zonePoints.pop();renderZonePreview();} });
+document.getElementById('cancel-zone-btn').addEventListener('click', ()=>{ cancelDrawing(); setToolActive('tb-map'); });
 
 function finishZone() {
-  if (zonePoints.length < 3) { cancelDrawing(); setTopBarMode('map'); return; }
-  const newZone = {
-    id: uid(), name: 'Yeni Zone',
-    color: currentZoneColor,
-    points: [...zonePoints],
-    waterLog: [], tasks: []
-  };
-  zones.push(newZone);
-  saveData(); cancelDrawing(); setTopBarMode('map');
-  renderZones();
-  openZoneModal(newZone);
+  if(zonePoints.length<3){cancelDrawing();setToolActive('tb-map');return;}
+  const z={id:uid(),name:'Yeni Zone',color:'#1D9E75',points:[...zonePoints],waterLog:[],tasks:[]};
+  zones.push(z); saveData(); cancelDrawing(); setToolActive('tb-map');
+  renderZones(); openZoneModal(z);
 }
 
 function renderZonePreview() {
   renderZones();
-  if (!drawingZone || zonePoints.length === 0) return;
-  const pts = zonePoints.map(p => { const c = mapToContainer(p.x, p.y); return `${c.x},${c.y}`; }).join(' ');
-  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-  poly.setAttribute('points', pts);
-  poly.setAttribute('fill', 'none');
-  poly.setAttribute('stroke', currentZoneColor);
-  poly.setAttribute('stroke-width', '2');
-  poly.setAttribute('stroke-dasharray', '6 4');
-  poly.setAttribute('opacity', '0.8');
-  poly.id = 'zone-preview';
+  if(!drawingZone||!zonePoints.length) return;
+  const pts=zonePoints.map(p=>{const c=mapToContainer(p.x,p.y);return`${c.x},${c.y}`;}).join(' ');
+  const poly=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  poly.setAttribute('points',pts); poly.setAttribute('fill','none');
+  poly.setAttribute('stroke','#1D9E75'); poly.setAttribute('stroke-width','2');
+  poly.setAttribute('stroke-dasharray','6 4'); poly.setAttribute('opacity','0.8');
   zonesSvg.appendChild(poly);
-  zonePoints.forEach(p => {
-    const c = mapToContainer(p.x, p.y);
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', c.x); circle.setAttribute('cy', c.y);
-    circle.setAttribute('r', '5'); circle.setAttribute('fill', currentZoneColor);
-    circle.setAttribute('stroke', 'white'); circle.setAttribute('stroke-width', '2');
-    zonesSvg.appendChild(circle);
+  zonePoints.forEach(p=>{
+    const c=mapToContainer(p.x,p.y);
+    const ci=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ci.setAttribute('cx',c.x); ci.setAttribute('cy',c.y);
+    ci.setAttribute('r','5'); ci.setAttribute('fill','#1D9E75');
+    ci.setAttribute('stroke','white'); ci.setAttribute('stroke-width','2');
+    zonesSvg.appendChild(ci);
   });
 }
 
 function renderZones() {
-  zonesSvg.innerHTML = '';
-  zones.forEach(zone => {
-    if (!zone.points || zone.points.length < 3) return;
-    const pts = zone.points.map(p => { const c = mapToContainer(p.x, p.y); return `${c.x},${c.y}`; }).join(' ');
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.style.cursor = 'pointer';
-    g.dataset.zoneId = zone.id;
-
-    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    poly.setAttribute('points', pts);
-    poly.setAttribute('fill', zone.color);
-    poly.setAttribute('fill-opacity', '0.18');
-    poly.setAttribute('stroke', zone.color);
-    poly.setAttribute('stroke-width', '2');
-    poly.setAttribute('stroke-opacity', '0.7');
+  zonesSvg.innerHTML='';
+  zones.forEach(zone=>{
+    if(!zone.points||zone.points.length<3) return;
+    const pts=zone.points.map(p=>{const c=mapToContainer(p.x,p.y);return`${c.x},${c.y}`;}).join(' ');
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.style.cursor='pointer'; g.dataset.zoneId=zone.id;
+    const poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points',pts); poly.setAttribute('fill',zone.color);
+    poly.setAttribute('fill-opacity','0.18'); poly.setAttribute('stroke',zone.color);
+    poly.setAttribute('stroke-width','2'); poly.setAttribute('stroke-opacity','0.7');
     g.appendChild(poly);
-
-    const cx = zone.points.reduce((s, p) => s + p.x, 0) / zone.points.length;
-    const cy = zone.points.reduce((s, p) => s + p.y, 0) / zone.points.length;
-    const cc = mapToContainer(cx, cy);
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('x', cc.x); label.setAttribute('y', cc.y);
-    label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('dominant-baseline', 'middle');
-    label.setAttribute('fill', zone.color);
-    label.setAttribute('font-size', '12');
-    label.setAttribute('font-weight', '600');
-    label.setAttribute('font-family', '-apple-system, sans-serif');
-    label.setAttribute('pointer-events', 'none');
-    label.textContent = zone.name;
-    g.appendChild(label);
-
-    g.addEventListener('click', e => {
-      if (drawingZone || addingMode) return;
-      e.stopPropagation();
-      const z = zones.find(z => z.id === g.dataset.zoneId);
-      if (z) openZoneModal(z);
-    });
-    g.style.pointerEvents = 'all';
+    const cx=zone.points.reduce((s,p)=>s+p.x,0)/zone.points.length;
+    const cy=zone.points.reduce((s,p)=>s+p.y,0)/zone.points.length;
+    const cc=mapToContainer(cx,cy);
+    const lbl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x',cc.x); lbl.setAttribute('y',cc.y);
+    lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('dominant-baseline','middle');
+    lbl.setAttribute('fill',zone.color); lbl.setAttribute('font-size','12');
+    lbl.setAttribute('font-weight','600'); lbl.setAttribute('font-family','-apple-system,sans-serif');
+    lbl.setAttribute('pointer-events','none'); lbl.textContent=zone.name;
+    g.appendChild(lbl);
+    g.addEventListener('click',e=>{ if(drawingZone||addingMode) return; e.stopPropagation(); const z=zones.find(z=>z.id===g.dataset.zoneId); if(z) openZoneModal(z); });
+    g.style.pointerEvents='all';
     zonesSvg.appendChild(g);
   });
 }
 
 /* ---- MAP INTERACTIONS ---- */
-let activeTouches = 0;
+function applyTransform() { mapImg.style.transform=`translate(${offsetX}px,${offsetY}px) scale(${scale})`; }
+function containerToMap(cx,cy) { return{x:(cx-offsetX)/scale,y:(cy-offsetY)/scale}; }
+function mapToContainer(mx,my) { return{x:mx*scale+offsetX,y:my*scale+offsetY}; }
 
-mapContainer.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'touch') activeTouches++;
-  if (e.target.closest('.pin')) return;
-
-  // Çift parmakla dokunuluyorsa nokta ekleme, sadece zoom
-  if (activeTouches >= 2) { isPanning = false; return; }
-
-  if (drawingZone) {
-    const rect = mapContainer.getBoundingClientRect();
-    const mc = containerToMap(e.clientX - rect.left, e.clientY - rect.top);
-    zonePoints.push(mc);
-    renderZonePreview();
-    return;
+mapContainer.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='touch') activeTouches++;
+  if(e.target.closest('.pin')) return;
+  if(activeTouches>=2){isPanning=false;return;}
+  if(drawingZone){
+    const rect=mapContainer.getBoundingClientRect();
+    const mc=containerToMap(e.clientX-rect.left,e.clientY-rect.top);
+    zonePoints.push(mc); renderZonePreview(); return;
   }
-  if (addingMode) return;
-  isPanning = true;
-  panStart = { x: e.clientX - offsetX, y: e.clientY - offsetY };
+  if(addingMode) return;
+  isPanning=true;
+  panStart={x:e.clientX-offsetX,y:e.clientY-offsetY};
   mapContainer.classList.add('dragging');
   mapContainer.setPointerCapture(e.pointerId);
 });
-
-mapContainer.addEventListener('pointerup', e => {
-  if (e.pointerType === 'touch') activeTouches = Math.max(0, activeTouches - 1);
-  isPanning = false;
-  mapContainer.classList.remove('dragging');
-});
-
-mapContainer.addEventListener('pointercancel', e => {
-  if (e.pointerType === 'touch') activeTouches = Math.max(0, activeTouches - 1);
-  isPanning = false;
-  mapContainer.classList.remove('dragging');
-});
-
-mapContainer.addEventListener('pointermove', e => {
-  if (!isPanning || activeTouches >= 2) return;
-  offsetX = e.clientX - panStart.x;
-  offsetY = e.clientY - panStart.y;
+mapContainer.addEventListener('pointermove',e=>{
+  if(!isPanning||activeTouches>=2) return;
+  offsetX=e.clientX-panStart.x; offsetY=e.clientY-panStart.y;
   applyTransform(); renderPins(); renderZones();
-  if (drawingZone) renderZonePreview();
+  if(drawingZone) renderZonePreview();
 });
-
-mapContainer.addEventListener('click', e => {
-  if (drawingZone || e.target.closest('.pin')) return;
-  if (!addingMode) return;
-  const rect = mapContainer.getBoundingClientRect();
-  const mc = containerToMap(e.clientX - rect.left, e.clientY - rect.top);
-  openNewPinModal(mc.x, mc.y);
-  cancelAddingPin(); setTopBarMode('map');
+mapContainer.addEventListener('pointerup',e=>{
+  if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
+  isPanning=false; mapContainer.classList.remove('dragging');
 });
-
-mapContainer.addEventListener('dblclick', e => {
-  if (drawingZone && zonePoints.length >= 3) finishZone();
+mapContainer.addEventListener('pointercancel',e=>{
+  if(e.pointerType==='touch') activeTouches=Math.max(0,activeTouches-1);
+  isPanning=false; mapContainer.classList.remove('dragging');
 });
-
-mapContainer.addEventListener('wheel', e => {
+mapContainer.addEventListener('click',e=>{
+  if(drawingZone||e.target.closest('.pin')) return;
+  if(!addingMode) return;
+  const rect=mapContainer.getBoundingClientRect();
+  const mc=containerToMap(e.clientX-rect.left,e.clientY-rect.top);
+  openNewPinModal(mc.x,mc.y); cancelAddingPin(); setToolActive('tb-map');
+});
+mapContainer.addEventListener('dblclick',e=>{ if(drawingZone&&zonePoints.length>=3) finishZone(); });
+mapContainer.addEventListener('wheel',e=>{
   e.preventDefault();
-  const rect = mapContainer.getBoundingClientRect();
-  const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-  const delta = e.deltaY > 0 ? 0.9 : 1.1;
-  const ns = Math.min(4, Math.max(minScale, scale * delta));
-  offsetX = cx - (cx - offsetX) * (ns / scale);
-  offsetY = cy - (cy - offsetY) * (ns / scale);
-  scale = ns; applyTransform(); renderPins(); renderZones();
-}, { passive: false });
-
-// Touch zoom — pointer eventlerinden bağımsız, sadece 2 parmak
-mapContainer.addEventListener('touchstart', e => {
-  if (e.touches.length === 2) {
-    isPanning = false;
-    lastTouchDist = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY
-    );
-    lastTouchMid = {
-      x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-      y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-    };
+  const rect=mapContainer.getBoundingClientRect();
+  const cx=e.clientX-rect.left,cy=e.clientY-rect.top;
+  const delta=e.deltaY>0?0.9:1.1;
+  const ns=Math.min(4,Math.max(minScale,scale*delta));
+  offsetX=cx-(cx-offsetX)*(ns/scale); offsetY=cy-(cy-offsetY)*(ns/scale);
+  scale=ns; applyTransform(); renderPins(); renderZones();
+},{passive:false});
+mapContainer.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    isPanning=false;
+    lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    lastTouchMid={x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2};
   }
-}, { passive: true });
-
-mapContainer.addEventListener('touchmove', e => {
-  if (e.touches.length !== 2) return;
+},{passive:true});
+mapContainer.addEventListener('touchmove',e=>{
+  if(e.touches.length!==2) return;
   e.preventDefault();
-  const dist = Math.hypot(
-    e.touches[0].clientX - e.touches[1].clientX,
-    e.touches[0].clientY - e.touches[1].clientY
-  );
-  const mid = {
-    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-  };
-  const rect = mapContainer.getBoundingClientRect();
-  const cx = mid.x - rect.left, cy = mid.y - rect.top;
-
-  // Zoom
-  const zoomDelta = dist / lastTouchDist;
-  const ns = Math.min(4, Math.max(minScale, scale * zoomDelta));
-  offsetX = cx - (cx - offsetX) * (ns / scale);
-  offsetY = cy - (cy - offsetY) * (ns / scale);
-  scale = ns;
-
-  // Pan (iki parmakla sürükleme)
-  if (lastTouchMid) {
-    offsetX += mid.x - lastTouchMid.x;
-    offsetY += mid.y - lastTouchMid.y;
-  }
-
-  lastTouchDist = dist;
-  lastTouchMid = mid;
+  const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  const mid={x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2};
+  const rect=mapContainer.getBoundingClientRect();
+  const cx=mid.x-rect.left,cy=mid.y-rect.top;
+  const zd=dist/lastTouchDist;
+  const ns=Math.min(4,Math.max(minScale,scale*zd));
+  offsetX=cx-(cx-offsetX)*(ns/scale); offsetY=cy-(cy-offsetY)*(ns/scale); scale=ns;
+  if(lastTouchMid){offsetX+=mid.x-lastTouchMid.x;offsetY+=mid.y-lastTouchMid.y;}
+  lastTouchDist=dist; lastTouchMid=mid;
   applyTransform(); renderPins(); renderZones();
-}, { passive: false });
-
-mapContainer.addEventListener('touchend', e => {
-  if (e.touches.length < 2) { lastTouchDist = null; lastTouchMid = null; }
-}, { passive: true });
+},{passive:false});
+mapContainer.addEventListener('touchend',e=>{
+  if(e.touches.length<2){lastTouchDist=null;lastTouchMid=null;}
+},{passive:true});
 
 /* ---- PINS ---- */
 function renderPins() {
-  pinsLayer.innerHTML = '';
-  pins.forEach(pin => {
-    const c = mapToContainer(pin.x, pin.y);
-    const el = document.createElement('div');
-    el.className = 'pin'; el.dataset.id = pin.id;
-    el.style.left = c.x + 'px'; el.style.top = c.y + 'px';
-    const lastWater = pin.waterLog && pin.waterLog.length ? pin.waterLog[pin.waterLog.length-1] : null;
-    const waterText = lastWater ? `💧 ${timeAgo(lastWater.ts)}` : '💧 Henüz sulanmadı';
-    el.innerHTML = `<div class="pin-icon" style="background:${pin.color}"><div class="pin-dot"></div></div>
-      <div class="pin-label">${pin.name}<span class="pin-last-water">${waterText}</span></div>`;
-    el.addEventListener('pointerdown', onPinDown);
+  pinsLayer.innerHTML='';
+  pins.forEach(pin=>{
+    const c=mapToContainer(pin.x,pin.y);
+    const el=document.createElement('div');
+    el.className='pin'; el.dataset.id=pin.id;
+    el.style.left=c.x+'px'; el.style.top=c.y+'px';
+    const lw=pin.waterLog&&pin.waterLog.length?pin.waterLog[pin.waterLog.length-1]:null;
+    const wt=lw?`💧 ${timeAgo(lw.ts)}`:'💧 Henüz sulanmadı';
+    el.innerHTML=`<div class="pin-icon" style="background:${pin.color}"><div class="pin-dot"></div></div>
+      <div class="pin-label">${pin.name}<span class="pin-last-water">${wt}</span></div>`;
+    el.addEventListener('pointerdown',onPinDown);
     pinsLayer.appendChild(el);
   });
 }
-
 function onPinDown(e) {
-  if (addingMode) return;
-  e.stopPropagation();
-  const id = e.currentTarget.dataset.id;
-  pinDragging = { id, el: e.currentTarget, startX: e.clientX, startY: e.clientY, moved: false };
+  if(addingMode) return; e.stopPropagation();
+  const id=e.currentTarget.dataset.id;
+  pinDragging={id,el:e.currentTarget,startX:e.clientX,startY:e.clientY,moved:false};
   e.currentTarget.setPointerCapture(e.pointerId);
-  e.currentTarget.addEventListener('pointermove', onPinMove);
-  e.currentTarget.addEventListener('pointerup', onPinUp);
+  e.currentTarget.addEventListener('pointermove',onPinMove);
+  e.currentTarget.addEventListener('pointerup',onPinUp);
 }
-
 function onPinMove(e) {
-  if (!pinDragging) return;
-  const dx = e.clientX - pinDragging.startX, dy = e.clientY - pinDragging.startY;
-  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) pinDragging.moved = true;
-  if (!pinDragging.moved) return;
-  const pin = pins.find(p => p.id === pinDragging.id);
-  if (!pin) return;
-  const rect = mapContainer.getBoundingClientRect();
-  const mc = containerToMap(e.clientX - rect.left, e.clientY - rect.top);
-  pin.x = mc.x; pin.y = mc.y;
-  const c = mapToContainer(pin.x, pin.y);
-  pinDragging.el.style.left = c.x + 'px'; pinDragging.el.style.top = c.y + 'px';
+  if(!pinDragging) return;
+  const dx=e.clientX-pinDragging.startX,dy=e.clientY-pinDragging.startY;
+  if(Math.abs(dx)>5||Math.abs(dy)>5) pinDragging.moved=true;
+  if(!pinDragging.moved) return;
+  const pin=pins.find(p=>p.id===pinDragging.id); if(!pin) return;
+  const rect=mapContainer.getBoundingClientRect();
+  const mc=containerToMap(e.clientX-rect.left,e.clientY-rect.top);
+  pin.x=mc.x; pin.y=mc.y;
+  const c=mapToContainer(pin.x,pin.y);
+  pinDragging.el.style.left=c.x+'px'; pinDragging.el.style.top=c.y+'px';
 }
-
 function onPinUp(e) {
-  if (!pinDragging) return;
-  pinDragging.el.removeEventListener('pointermove', onPinMove);
-  pinDragging.el.removeEventListener('pointerup', onPinUp);
-  if (pinDragging.moved) { saveData(); }
-  else { const pin = pins.find(p => p.id === pinDragging.id); if (pin) openPinModal(pin); }
-  pinDragging = null;
+  if(!pinDragging) return;
+  pinDragging.el.removeEventListener('pointermove',onPinMove);
+  pinDragging.el.removeEventListener('pointerup',onPinUp);
+  if(pinDragging.moved){saveData();}
+  else{const pin=pins.find(p=>p.id===pinDragging.id);if(pin) openPinModal(pin);}
+  pinDragging=null;
 }
 
 /* ---- MODALS ---- */
 function renderModalColors() {
-  modalColors.innerHTML = '';
-  COLORS.forEach(c => {
-    const btn = document.createElement('div');
-    btn.className = 'modal-color-btn' + (c === modalColor ? ' active' : '');
-    btn.style.background = c;
-    btn.onclick = () => { modalColor = c; renderModalColors(); };
+  modalColors.innerHTML='';
+  COLORS.forEach(c=>{
+    const btn=document.createElement('div');
+    btn.className='modal-color-btn'+(c===modalColor?' active':'');
+    btn.style.background=c;
+    btn.onclick=()=>{modalColor=c;renderModalColors();};
     modalColors.appendChild(btn);
   });
 }
-
-function openPinModal(pin) {
-  editingPinId = pin.id; editingZoneId = null;
-  document.getElementById('modal-title').textContent = pin.name;
-  pinNameInput.value = pin.name;
-  modalColor = pin.color;
-  modalDelete.style.display = 'inline-block';
-  document.getElementById('zone-folder-section').style.display = 'none';
-  document.getElementById('pin-water-section').style.display = 'block';
-  renderModalColors();
-  renderPinWaterHistory(pin);
-  modalOverlay.classList.add('open');
-  waterDuration.value = '';
-}
-
-function renderPinWaterHistory(pin) {
-  const sec = document.getElementById('pin-water-section');
-  if (!pin.waterLog || pin.waterLog.length === 0) {
-    sec.innerHTML = '<div style="font-size:12px;color:#bbb;font-style:italic;margin-bottom:8px;">Henüz sulama kaydı yok</div>';
-  } else {
-    const last5 = [...pin.waterLog].reverse().slice(0, 5);
-    sec.innerHTML = '<div style="font-size:11px;color:#888;margin-bottom:6px;">Son sulamalar</div>' +
-      last5.map(e => {
-        const d = new Date(e.ts);
-        return `<div class="water-entry"><span>${d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span>${e.duration} dk</span></div>`;
-      }).join('');
-  }
-}
-
-function openNewPinModal(x, y) {
-  editingPinId = null; editingZoneId = null;
-  document.getElementById('modal-title').textContent = 'Yeni pin';
-  pinNameInput.value = '';
-  modalColor = '#1D9E75';
-  modalDelete.style.display = 'none';
-  document.getElementById('zone-folder-section').style.display = 'none';
-  document.getElementById('pin-water-section').style.display = 'none';
-  renderModalColors();
-  modalOverlay.classList.add('open');
-  modalOverlay.dataset.newX = x;
-  modalOverlay.dataset.newY = y;
-  modalOverlay.dataset.newType = 'pin';
-  pinNameInput.focus();
-}
-
 function openZoneModal(zone) {
-  editingZoneId = zone.id; editingPinId = null;
-  document.getElementById('modal-title').textContent = zone.name;
-  pinNameInput.value = zone.name;
-  modalColor = zone.color;
-  modalDelete.style.display = 'inline-block';
-  document.getElementById('zone-folder-section').style.display = 'block';
-  document.getElementById('pin-water-section').style.display = 'none';
+  editingZoneId=zone.id; editingPinId=null;
+  document.getElementById('modal-title').textContent=zone.name;
+  pinNameInput.value=zone.name; modalColor=zone.color;
+  modalDelete.style.display='inline-block';
+  document.getElementById('zone-folder-section').style.display='block';
+  document.getElementById('pin-water-section').style.display='none';
+  renderModalColors(); switchZoneTab('water');
+  renderWaterSection(zone); renderTaskSection(zone);
+  modalOverlay.classList.add('open'); waterDuration.value='';
+}
+function openPinModal(pin) {
+  editingPinId=pin.id; editingZoneId=null;
+  document.getElementById('modal-title').textContent=pin.name;
+  pinNameInput.value=pin.name; modalColor=pin.color;
+  modalDelete.style.display='inline-block';
+  document.getElementById('zone-folder-section').style.display='none';
+  document.getElementById('pin-water-section').style.display='block';
+  renderModalColors(); renderPinWaterHistory(pin);
+  modalOverlay.classList.add('open'); waterDuration.value='';
+}
+function openNewPinModal(x,y) {
+  editingPinId=null; editingZoneId=null;
+  document.getElementById('modal-title').textContent='Yeni pin';
+  pinNameInput.value=''; modalColor='#1D9E75';
+  modalDelete.style.display='none';
+  document.getElementById('zone-folder-section').style.display='none';
+  document.getElementById('pin-water-section').style.display='none';
   renderModalColors();
-  switchZoneTab('water');
-  renderWaterSection(zone);
-  renderTaskSection(zone);
-  modalOverlay.classList.add('open');
-  waterDuration.value = '';
+  modalOverlay.dataset.newX=x; modalOverlay.dataset.newY=y; modalOverlay.dataset.newType='pin';
+  modalOverlay.classList.add('open'); pinNameInput.focus();
 }
-
-function switchZoneTab(tabName) {
-  document.querySelectorAll('.zone-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
-  document.querySelectorAll('.zone-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabName));
+function renderPinWaterHistory(pin) {
+  const sec=document.getElementById('pin-water-section');
+  if(!pin.waterLog||!pin.waterLog.length){sec.innerHTML='<div style="font-size:12px;color:#bbb;font-style:italic;margin-bottom:8px;">Henüz sulama kaydı yok</div>';return;}
+  sec.innerHTML='<div style="font-size:11px;color:#888;margin-bottom:6px;">Son sulamalar</div>'+[...pin.waterLog].reverse().slice(0,5).map(e=>{
+    const d=new Date(e.ts);
+    return`<div class="water-entry"><span>${d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span>${e.duration} dk</span></div>`;
+  }).join('');
 }
-
-document.querySelectorAll('.zone-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
+function switchZoneTab(t) {
+  document.querySelectorAll('.zone-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.querySelectorAll('.zone-tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+t));
+}
+document.querySelectorAll('.zone-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
     switchZoneTab(tab.dataset.tab);
-    if (tab.dataset.tab === 'tasks' && editingZoneId) {
-      const z = zones.find(z => z.id === editingZoneId);
-      if (z) renderTaskSection(z);
-    }
+    if(tab.dataset.tab==='tasks'&&editingZoneId){const z=zones.find(z=>z.id===editingZoneId);if(z)renderTaskSection(z);}
   });
 });
-
 function renderWaterSection(zone) {
-  const last5 = zone.waterLog ? [...zone.waterLog].reverse().slice(0, 5) : [];
-  waterHistory.innerHTML = last5.length === 0
-    ? '<div style="color:#bbb;font-style:italic;font-size:12px;">Henüz sulama kaydı yok</div>'
-    : last5.map(e => {
-        const d = new Date(e.ts);
-        return `<div class="water-entry"><span>${d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span>${e.duration} dk</span></div>`;
-      }).join('');
+  const last5=zone.waterLog?[...zone.waterLog].reverse().slice(0,5):[];
+  waterHistory.innerHTML=!last5.length?'<div style="color:#bbb;font-style:italic;font-size:12px;">Henüz sulama kaydı yok</div>':last5.map(e=>{
+    const d=new Date(e.ts);
+    return`<div class="water-entry"><span>${d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span>${e.duration} dk</span></div>`;
+  }).join('');
 }
-
-document.getElementById('log-water-btn').addEventListener('click', () => {
-  if (!editingZoneId) return;
-  const dur = parseInt(waterDuration.value);
-  if (!dur || dur < 1) { waterDuration.focus(); return; }
-  const zone = zones.find(z => z.id === editingZoneId);
-  if (!zone) return;
-  if (!zone.waterLog) zone.waterLog = [];
-  zone.waterLog.push({ ts: Date.now(), duration: dur });
-  saveData(); renderWaterSection(zone); renderZones();
-  waterDuration.value = '';
+document.getElementById('log-water-btn').addEventListener('click',()=>{
+  if(!editingZoneId) return;
+  const dur=parseInt(waterDuration.value); if(!dur||dur<1){waterDuration.focus();return;}
+  const zone=zones.find(z=>z.id===editingZoneId); if(!zone) return;
+  if(!zone.waterLog) zone.waterLog=[];
+  zone.waterLog.push({ts:Date.now(),duration:dur});
+  saveData(); renderWaterSection(zone); renderZones(); waterDuration.value='';
 });
-
-/* ---- TASKS ---- */
-document.querySelectorAll('.task-type-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    activeTaskType = btn.dataset.type;
-    document.querySelectorAll('.task-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === activeTaskType));
-    if (editingZoneId) { const z = zones.find(z => z.id === editingZoneId); if (z) renderTaskSection(z); }
+document.querySelectorAll('.task-type-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    activeTaskType=btn.dataset.type;
+    document.querySelectorAll('.task-type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===activeTaskType));
+    if(editingZoneId){const z=zones.find(z=>z.id===editingZoneId);if(z)renderTaskSection(z);}
   });
 });
-
-document.getElementById('task-add-btn').addEventListener('click', addTask);
-document.getElementById('task-input').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
-
+document.getElementById('task-add-btn').addEventListener('click',addTask);
+document.getElementById('task-input').addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
 function addTask() {
-  if (!editingZoneId) return;
-  const input = document.getElementById('task-input');
-  const text = input.value.trim();
-  if (!text) return;
-  const zone = zones.find(z => z.id === editingZoneId);
-  if (!zone) return;
-  if (!zone.tasks) zone.tasks = [];
-  zone.tasks.push({ id: uid(), text, type: activeTaskType, done: false, createdAt: Date.now() });
-  saveData(); input.value = '';
-  renderTaskSection(zone);
+  if(!editingZoneId) return;
+  const input=document.getElementById('task-input');
+  const text=input.value.trim(); if(!text) return;
+  const zone=zones.find(z=>z.id===editingZoneId); if(!zone) return;
+  if(!zone.tasks) zone.tasks=[];
+  zone.tasks.push({id:uid(),text,type:activeTaskType,done:false,createdAt:Date.now()});
+  saveData(); input.value=''; renderTaskSection(zone);
 }
-
 function renderTaskSection(zone) {
-  const list = document.getElementById('task-list');
-  const tasks = (zone.tasks || []).filter(t => t.type === activeTaskType);
-  if (tasks.length === 0) {
-    list.innerHTML = '<div style="font-size:12px;color:#bbb;font-style:italic;padding:12px 0;">Görev yok — yukarıdan ekle</div>';
-    return;
-  }
-  list.innerHTML = tasks.map(t => `
-    <div class="task-item" data-task-id="${t.id}">
-      <div class="task-check ${t.done ? 'done' : ''}" data-check="${t.id}"></div>
-      <span class="task-text ${t.done ? 'done' : ''}">${t.text}</span>
-      <button class="task-del" data-del="${t.id}">×</button>
-    </div>`).join('');
-  list.querySelectorAll('[data-check]').forEach(el => {
-    el.addEventListener('click', () => {
-      const task = zone.tasks.find(t => t.id === el.dataset.check);
-      if (task) { task.done = !task.done; saveData(); renderTaskSection(zone); }
-    });
+  const list=document.getElementById('task-list');
+  const tasks=(zone.tasks||[]).filter(t=>t.type===activeTaskType);
+  if(!tasks.length){list.innerHTML='<div style="font-size:12px;color:#bbb;font-style:italic;padding:12px 0;">Görev yok — yukarıdan ekle</div>';return;}
+  list.innerHTML=tasks.map(t=>`<div class="task-item" data-tid="${t.id}">
+    <div class="task-check ${t.done?'done':''}" data-check="${t.id}"></div>
+    <span class="task-text ${t.done?'done':''}">${t.text}</span>
+    <button class="task-del" data-del="${t.id}">×</button>
+  </div>`).join('');
+  list.querySelectorAll('[data-check]').forEach(el=>{
+    el.addEventListener('click',()=>{const t=zone.tasks.find(t=>t.id===el.dataset.check);if(t){t.done=!t.done;saveData();renderTaskSection(zone);}});
   });
-  list.querySelectorAll('[data-del]').forEach(el => {
-    el.addEventListener('click', () => {
-      zone.tasks = zone.tasks.filter(t => t.id !== el.dataset.del);
-      saveData(); renderTaskSection(zone);
-    });
+  list.querySelectorAll('[data-del]').forEach(el=>{
+    el.addEventListener('click',()=>{zone.tasks=zone.tasks.filter(t=>t.id!==el.dataset.del);saveData();renderTaskSection(zone);});
   });
 }
-
-/* ---- MODAL SAVE / DELETE ---- */
-document.getElementById('modal-save').addEventListener('click', () => {
-  const name = pinNameInput.value.trim() || 'Bölge';
-  if (editingZoneId) {
-    const zone = zones.find(z => z.id === editingZoneId);
-    if (zone) { zone.name = name; zone.color = modalColor; }
-    saveData(); renderZones();
-  } else if (editingPinId) {
-    const pin = pins.find(p => p.id === editingPinId);
-    if (pin) { pin.name = name; pin.color = modalColor; }
-    saveData(); renderPins();
-  } else {
-    const type = modalOverlay.dataset.newType;
-    if (type === 'pin') {
-      pins.push({ id: uid(), x: parseFloat(modalOverlay.dataset.newX), y: parseFloat(modalOverlay.dataset.newY), name, color: modalColor, waterLog: [] });
-      saveData(); renderPins();
-    }
-  }
+document.getElementById('modal-save').addEventListener('click',()=>{
+  const name=pinNameInput.value.trim()||'Bölge';
+  if(editingZoneId){const z=zones.find(z=>z.id===editingZoneId);if(z){z.name=name;z.color=modalColor;}saveData();renderZones();}
+  else if(editingPinId){const p=pins.find(p=>p.id===editingPinId);if(p){p.name=name;p.color=modalColor;}saveData();renderPins();}
+  else{pins.push({id:uid(),x:parseFloat(modalOverlay.dataset.newX),y:parseFloat(modalOverlay.dataset.newY),name,color:modalColor,waterLog:[]});saveData();renderPins();}
+  modalOverlay.classList.remove('open');
+});
+document.getElementById('modal-cancel').addEventListener('click',()=>modalOverlay.classList.remove('open'));
+modalDelete.addEventListener('click',()=>{
+  if(editingZoneId){if(!confirm('Bu zonu silmek istiyor musun?'))return;zones=zones.filter(z=>z.id!==editingZoneId);saveData();renderZones();}
+  else if(editingPinId){if(!confirm('Bu pini silmek istiyor musun?'))return;pins=pins.filter(p=>p.id!==editingPinId);saveData();renderPins();}
   modalOverlay.classList.remove('open');
 });
 
-document.getElementById('modal-cancel').addEventListener('click', () => modalOverlay.classList.remove('open'));
-
-modalDelete.addEventListener('click', () => {
-  if (editingZoneId) {
-    if (!confirm('Bu zonu silmek istiyor musun?')) return;
-    zones = zones.filter(z => z.id !== editingZoneId);
-    saveData(); renderZones();
-  } else if (editingPinId) {
-    if (!confirm('Bu pini silmek istiyor musun?')) return;
-    pins = pins.filter(p => p.id !== editingPinId);
-    saveData(); renderPins();
-  }
-  modalOverlay.classList.remove('open');
-});
-
-/* ---- MAP LOAD ---- */
-mapImg.onload = () => {
-  const iw = mapImg.naturalWidth, ih = mapImg.naturalHeight;
-  const cw = mapContainer.clientWidth, ch = mapContainer.clientHeight;
-  scale = Math.min(cw / iw, ch / ih);
-  minScale = scale;
-  offsetX = (cw - iw * scale) / 2;
-  offsetY = (ch - ih * scale) / 2;
+/* ---- HARİTA YÜKLE ---- */
+mapImg.onload=()=>{
+  const iw=mapImg.naturalWidth,ih=mapImg.naturalHeight;
+  const cw=mapContainer.clientWidth,ch=mapContainer.clientHeight;
+  scale=Math.min(cw/iw,ch/ih); minScale=scale;
+  offsetX=(cw-iw*scale)/2; offsetY=(ch-ih*scale)/2;
   applyTransform(); loadData(); renderPins(); renderZones();
 };
-
-mapImg.onerror = () => {
-  mapContainer.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#888;padding:20px;text-align:center">
+mapImg.onerror=()=>{
+  mapContainer.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#888;padding:20px;text-align:center">
     <div style="font-size:48px">🗺️</div>
     <div style="font-size:14px;font-weight:600;color:#555">Harita görseli bulunamadı</div>
     <div style="font-size:13px">Dosyayı <strong>harita.jpeg</strong> adıyla GitHub'a yükle.</div></div>`;
 };
-
-mapImg.src = MAP_URL;
+mapImg.src=MAP_URL;
 </script>
 </body>
 </html>
