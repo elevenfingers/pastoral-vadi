@@ -139,23 +139,31 @@
 
     /* SOHBET */
     #chat-bar {
-      position: absolute; bottom: 12px; left: 12px; right: 12px;
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
       z-index: 100; display: flex; align-items: center; gap: 8px;
+      width: calc(100% - 60px); max-width: 380px;
     }
     #chat-input-wrap {
       flex: 1; background: rgba(255,255,255,0.92);
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       border-radius: 24px; display: flex; align-items: center;
-      padding: 8px 14px; gap: 8px;
+      padding: 7px 8px 7px 12px; gap: 6px;
       box-shadow: 0 2px 16px rgba(0,0,0,0.12);
     }
-    #chat-input-wrap i { font-size: 16px; color: #888; flex-shrink: 0; }
-    #chat-input {
-      flex: 1; border: none; background: transparent;
-      font-size: 14px; color: #2c2c2a; outline: none;
-      font-family: inherit;
+    .chat-icon-btn {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: none; background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s;
     }
-    #chat-input::placeholder { color: #aaa; }
+    .chat-icon-btn:hover { background: rgba(0,0,0,0.06); }
+    .chat-icon-btn i { font-size: 17px; color: #888; }
+    #chat-quick {
+      flex: 1; border: none; background: transparent;
+      font-size: 13px; color: #2c2c2a; outline: none;
+      font-family: inherit; min-width: 0; text-align: center;
+    }
+    #chat-quick::placeholder { color: #aaa; }
     #chat-send {
       width: 40px; height: 40px; border-radius: 50%;
       background: #1D9E75; border: none; cursor: pointer;
@@ -164,6 +172,8 @@
       flex-shrink: 0;
     }
     #chat-send i { font-size: 18px; color: white; }
+    /* gizli dosya input */
+    #photo-input { display: none; }
 
     /* SOHBET PANELİ */
     #chat-panel {
@@ -329,26 +339,12 @@
   <!-- SOHBET BUTONU -->
   <div id="chat-bar">
     <div id="chat-input-wrap">
-      <i class="ti ti-message-circle" aria-hidden="true"></i>
-      <input type="text" id="chat-quick" placeholder="Eren 34 yumurta topladı..." />
+      <button class="chat-icon-btn" id="photo-btn" title="Fotoğraf"><i class="ti ti-camera"></i></button>
+      <input type="text" id="chat-quick" placeholder="Benimle paylaş" />
+      <button class="chat-icon-btn" id="voice-btn" title="Sesli not"><i class="ti ti-microphone"></i></button>
     </div>
     <button id="chat-send"><i class="ti ti-arrow-up"></i></button>
-  </div>
-
-  <!-- SOHBET PANELİ -->
-  <div id="chat-panel">
-    <div class="chat-panel-handle"></div>
-    <div class="chat-panel-header">
-      <div class="chat-panel-title"><i class="ti ti-message-circle" aria-hidden="true"></i>Notlar & Kayıtlar</div>
-      <button class="chat-close" id="chat-panel-close"><i class="ti ti-x"></i></button>
-    </div>
-    <div id="chat-messages">
-      <div class="chat-msg system">Merhaba! Çiftlik kayıtlarını buraya yaz.</div>
-    </div>
-    <div class="chat-input-area">
-      <input type="text" id="chat-panel-input" placeholder="Bir not veya kayıt ekle..." />
-      <button id="chat-panel-send"><i class="ti ti-arrow-up"></i></button>
-    </div>
+    <input type="file" id="photo-input" accept="image/*" />
   </div>
 
   <!-- ZONE/PIN MODAL -->
@@ -363,7 +359,7 @@
         <div class="zone-tabs">
           <button class="zone-tab active" data-tab="water">Sulama</button>
           <button class="zone-tab" data-tab="tasks">Görevler</button>
-          <button class="zone-tab" data-tab="archive">Arşiv</button>
+          <button class="zone-tab" data-tab="archive">Notlar</button>
         </div>
         <div class="zone-tab-content active" id="tab-water">
           <div id="water-section">
@@ -385,7 +381,7 @@
           <div id="task-list"></div>
         </div>
         <div class="zone-tab-content" id="tab-archive">
-          <div id="archive-list" style="font-size:13px;color:#bbb;text-align:center;padding:20px 0;font-style:italic;">Henüz arşiv kaydı yok</div>
+          <div id="zone-notes-list" style="font-size:13px;color:#bbb;text-align:center;padding:20px 0;font-style:italic;">Henüz not yok</div>
         </div>
       </div>
       <div id="pin-water-section"></div>
@@ -434,14 +430,39 @@ const waterDuration = document.getElementById('water-duration');
 const waterHistory = document.getElementById('water-history');
 const drawingToolbar = document.getElementById('drawing-toolbar');
 const sidePanel = document.getElementById('side-panel');
-const chatPanel = document.getElementById('chat-panel');
 
 /* ---- DATA ---- */
+function migrateOldData() {
+  // Eski v3 verisini v4'e taşı (bir kez)
+  try {
+    const v4 = localStorage.getItem(STORAGE_KEY);
+    if (v4) return; // zaten v4 var, taşımaya gerek yok
+    const v3 = localStorage.getItem('pastoral_vadi_v3');
+    if (v3) {
+      const old = JSON.parse(v3);
+      const migrated = { pins: old.pins||[], zones: old.zones||[], notes: [] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    }
+  } catch(e) {}
+}
+
+function ensureAnaBina() {
+  // Ana Bina özel zone'u yoksa oluştur (notların varsayılan klasörü)
+  if (!zones.find(z => z.isHome)) {
+    zones.unshift({
+      id: 'ana-bina', name: 'Ana Bina', color: '#BA7517',
+      points: [], waterLog: [], tasks: [], notes: [], isHome: true
+    });
+  }
+}
+
 function loadData() {
+  migrateOldData();
   try {
     const d = localStorage.getItem(STORAGE_KEY);
     if (d) { const p = JSON.parse(d); pins = p.pins||[]; zones = p.zones||[]; notes = p.notes||[]; }
   } catch(e) { pins=[]; zones=[]; notes=[]; }
+  ensureAnaBina();
 }
 function saveData() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({pins,zones,notes})); } catch(e) {}
@@ -513,25 +534,41 @@ document.getElementById('tb-zone').addEventListener('click', () => {
 document.getElementById('menu-zones').addEventListener('click', () => openSidePanel('zones'));
 document.getElementById('menu-tasks').addEventListener('click', () => openSidePanel('tasks'));
 document.getElementById('menu-notes').addEventListener('click', () => openSidePanel('notes'));
-document.getElementById('menu-settings').addEventListener('click', () => {});
+document.getElementById('menu-settings').addEventListener('click', () => openSidePanel('settings'));
 
 /* ---- YAN PANEL ---- */
+let pendingNote = null; // zone seçimi bekleyen not
+
 function openSidePanel(type) {
-  document.getElementById('side-panel-title').textContent = type==='zones'?'Zonlar':type==='tasks'?'Görevler':'Notlar';
+  const titles = {zones:'Zonlar',tasks:'Görevler',notes:'Notlar',settings:'Ayarlar',pick:'Hangi zone\'a?'};
+  document.getElementById('side-panel-title').textContent = titles[type]||'';
   const body = document.getElementById('side-panel-body');
+
   if(type==='zones') {
-    if(!zones.length) { body.innerHTML='<p class="panel-empty">Henüz zone yok — haritada zone çiz</p>'; }
-    else body.innerHTML = zones.map(z=>{
+    const visible = zones.filter(z=>z.points&&z.points.length>=3 || z.isHome);
+    if(!visible.length) { body.innerHTML='<p class="panel-empty">Henüz zone yok — haritada zone çiz</p>'; }
+    else body.innerHTML = visible.map(z=>{
       const tw=(z.tasks||[]).filter(t=>!t.done).length;
       const lw=z.waterLog&&z.waterLog.length?timeAgo(z.waterLog[z.waterLog.length-1].ts):'Sulanmadı';
       return `<div class="zone-list-item" data-zid="${z.id}">
         <div class="zone-color-dot" style="background:${z.color}"></div>
-        <span class="zone-list-name">${z.name}</span>
+        <span class="zone-list-name">${z.name}${z.isHome?' 🏠':''}</span>
         <span class="zone-list-meta">${tw?tw+' görev · ':''}${lw}</span>
       </div>`;
     }).join('');
     body.querySelectorAll('.zone-list-item').forEach(el=>{
-      el.addEventListener('click',()=>{ const z=zones.find(z=>z.id===el.dataset.zid); if(z){closeSidePanel();openZoneModal(z);} });
+      el.addEventListener('click',()=>{ const z=zones.find(z=>z.id===el.dataset.zid); if(z){closeSidePanel(); focusZone(z); openZoneModal(z);} });
+    });
+  } else if(type==='pick') {
+    // Not için zone seçtirme
+    body.innerHTML = '<p style="font-size:12px;color:#888;padding:0 4px 10px;">Seçmezsen Ana Bina\'ya kaydedilir</p>' +
+      zones.filter(z=>z.points&&z.points.length>=3||z.isHome).map(z=>`
+      <div class="zone-list-item" data-pick="${z.id}">
+        <div class="zone-color-dot" style="background:${z.color}"></div>
+        <span class="zone-list-name">${z.name}${z.isHome?' 🏠':''}</span>
+      </div>`).join('');
+    body.querySelectorAll('[data-pick]').forEach(el=>{
+      el.addEventListener('click',()=>{ assignPendingNote(el.dataset.pick); });
     });
   } else if(type==='tasks') {
     const all = zones.flatMap(z=>(z.tasks||[]).map(t=>({...t,zoneName:z.name,zoneColor:z.color})));
@@ -542,55 +579,165 @@ function openSidePanel(type) {
         <div class="zone-color-dot" style="background:${t.zoneColor}"></div>
         <div style="flex:1"><div class="zone-list-name">${t.text}</div><div class="zone-list-meta">${t.zoneName} · ${t.type==='routine'?'Rutin':'Tekil'}</div></div>
       </div>`).join('');
-  } else {
-    if(!notes.length) body.innerHTML='<p class="panel-empty">Henüz not yok</p>';
-    else body.innerHTML = [...notes].reverse().map(n=>`
-      <div class="zone-list-item" style="flex-direction:column;align-items:flex-start;">
+  } else if(type==='notes') {
+    // Tüm zone notları + serbest notlar
+    const zoneNotes = zones.flatMap(z=>(z.notes||[]).map(n=>({...n,zoneId:z.id,zoneName:z.name,zoneColor:z.color})));
+    const allNotes = [...zoneNotes].sort((a,b)=>b.ts-a.ts);
+    if(!allNotes.length) body.innerHTML='<p class="panel-empty">Henüz not yok</p>';
+    else body.innerHTML = allNotes.map(n=>`
+      <div class="zone-list-item note-item" data-note="${n.id}" data-zone="${n.zoneId}" style="flex-direction:column;align-items:flex-start;gap:4px;">
         <div class="zone-list-name" style="font-weight:400;">${n.text}</div>
-        <div class="zone-list-meta">${timeAgo(n.ts)}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="zone-color-dot" style="background:${n.zoneColor};width:10px;height:10px;"></div>
+          <span class="zone-list-meta">${n.zoneName} · ${timeAgo(n.ts)} · zonu değiştir</span>
+        </div>
       </div>`).join('');
+    body.querySelectorAll('.note-item').forEach(el=>{
+      el.addEventListener('click',()=>{ startReassignNote(el.dataset.note, el.dataset.zone); });
+    });
+  } else if(type==='settings') {
+    body.innerHTML = `
+      <div style="padding:4px 0 16px;">
+        <div style="font-size:12px;color:#888;margin-bottom:6px;">Profil</div>
+        <input type="text" id="profile-name" placeholder="Adın" style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #d0c8bc;background:#f5f0e8;font-size:15px;margin-bottom:10px;font-family:inherit;" />
+        <input type="text" id="profile-rank" placeholder="Rütben (örn: Çiftlik sahibi)" style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #d0c8bc;background:#f5f0e8;font-size:15px;margin-bottom:10px;font-family:inherit;" />
+        <button id="save-profile" style="width:100%;padding:11px;border-radius:10px;background:#1D9E75;color:white;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Profili kaydet</button>
+      </div>
+      <div style="border-top:1px solid #f0ece4;padding:16px 0;">
+        <div style="font-size:12px;color:#888;margin-bottom:10px;">Veri yedekleme & aktarma</div>
+        <button id="export-btn" style="width:100%;padding:11px;border-radius:10px;background:#f5f0e8;color:#2c2c2a;border:1px solid #d0c8bc;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:8px;font-family:inherit;">📤 Verilerimi dışa aktar</button>
+        <button id="import-btn" style="width:100%;padding:11px;border-radius:10px;background:#f5f0e8;color:#2c2c2a;border:1px solid #d0c8bc;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">📥 Veri içe aktar</button>
+        <p style="font-size:11px;color:#aaa;margin-top:8px;line-height:1.5;">Dışa aktar: tüm zone, pin ve notların bir metin olarak kopyalanır. İçe aktar: başka cihazdan bu metni yapıştırırsın.</p>
+      </div>`;
+    const p = loadProfile();
+    if(p){ document.getElementById('profile-name').value=p.name||''; document.getElementById('profile-rank').value=p.rank||''; }
+    document.getElementById('save-profile').addEventListener('click', saveProfile);
+    document.getElementById('export-btn').addEventListener('click', exportData);
+    document.getElementById('import-btn').addEventListener('click', importData);
   }
   sidePanel.classList.add('open');
 }
-function closeSidePanel() { sidePanel.classList.remove('open'); }
+function closeSidePanel() {
+  sidePanel.classList.remove('open');
+  if(pendingNote) commitPendingToHome();
+}
 document.getElementById('side-panel-close').addEventListener('click', closeSidePanel);
 
-/* ---- SOHBET ---- */
-document.getElementById('chat-quick').addEventListener('focus', () => {
-  chatPanel.classList.add('open');
-  setTimeout(()=>document.getElementById('chat-panel-input').focus(),350);
-});
+/* ---- PROFİL ---- */
+function loadProfile() { try { return JSON.parse(localStorage.getItem('pastoral_vadi_profile')); } catch(e){ return null; } }
+function saveProfile() {
+  const name=document.getElementById('profile-name').value.trim();
+  const rank=document.getElementById('profile-rank').value.trim();
+  localStorage.setItem('pastoral_vadi_profile', JSON.stringify({name,rank}));
+  alert('Profil kaydedildi!');
+}
+
+/* ---- EXPORT / IMPORT (manuel sync) ---- */
+function exportData() {
+  const data = JSON.stringify({pins,zones,notes});
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(data).then(()=>alert('Veriler panoya kopyalandı! Eren\'in cihazında "İçe aktar"a yapıştır.')).catch(()=>fallbackExport(data));
+  } else fallbackExport(data);
+}
+function fallbackExport(data) {
+  const t=document.createElement('textarea'); t.value=data; document.body.appendChild(t); t.select();
+  try{document.execCommand('copy');alert('Veriler panoya kopyalandı!');}catch(e){prompt('Bu metni kopyala:',data);}
+  document.body.removeChild(t);
+}
+function importData() {
+  const raw = prompt('Dışa aktarılan veriyi buraya yapıştır:');
+  if(!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if(!confirm('Mevcut veriler değiştirilecek. Devam edilsin mi?')) return;
+    pins=d.pins||[]; zones=d.zones||[]; notes=d.notes||[];
+    ensureAnaBina(); saveData(); renderPins(); renderZones();
+    alert('Veriler içe aktarıldı!'); closeSidePanel();
+  } catch(e) { alert('Geçersiz veri formatı.'); }
+}
+
+/* ---- SOHBET / NOT ---- */
 document.getElementById('chat-quick').addEventListener('keydown', e => {
   if(e.key==='Enter') sendChat();
 });
 document.getElementById('chat-send').addEventListener('click', sendChat);
-document.getElementById('chat-panel-close').addEventListener('click', () => chatPanel.classList.remove('open'));
-document.getElementById('chat-panel-send').addEventListener('click', sendChatPanel);
-document.getElementById('chat-panel-input').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChatPanel(); });
+
+// Fotoğraf
+document.getElementById('photo-btn').addEventListener('click', ()=>document.getElementById('photo-input').click());
+document.getElementById('photo-input').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  // Şimdilik sadece isim olarak not düşelim (depolama optimizasyonu sonra)
+  const text='📷 Fotoğraf: '+file.name;
+  pendingNote={id:uid(),text,ts:Date.now()};
+  openSidePanel('pick');
+  e.target.value='';
+});
+
+// Sesli not (şimdilik placeholder)
+document.getElementById('voice-btn').addEventListener('click', ()=>{
+  alert('Sesli not özelliği yakında eklenecek.');
+});
 
 function sendChat() {
   const input = document.getElementById('chat-quick');
   const text = input.value.trim(); if(!text) return;
-  chatPanel.classList.add('open');
-  addChatMsg(text,'user');
-  notes.push({id:uid(),text,ts:Date.now()});
-  saveData(); input.value='';
-  setTimeout(()=>{ addChatMsg('Kaydedildi — Notlar bölümünden görebilirsin.','ai'); },400);
+  pendingNote = {id:uid(), text, ts:Date.now()};
+  input.value='';
+  // Zone seçtir
+  openSidePanel('pick');
 }
-function sendChatPanel() {
-  const input = document.getElementById('chat-panel-input');
-  const text = input.value.trim(); if(!text) return;
-  addChatMsg(text,'user');
-  notes.push({id:uid(),text,ts:Date.now()});
-  saveData(); input.value='';
-  setTimeout(()=>{ addChatMsg('Kaydedildi.','ai'); },400);
+
+function assignPendingNote(zoneId) {
+  if(!pendingNote) { closeSidePanel(); return; }
+  const zone = zones.find(z=>z.id===zoneId) || zones.find(z=>z.isHome);
+  if(!zone.notes) zone.notes=[];
+  zone.notes.push(pendingNote);
+  saveData();
+  pendingNote=null;
+  closeSidePanel();
+  flashToast('Not '+zone.name+' zonuna kaydedildi');
 }
-function addChatMsg(text, type) {
-  const msgs = document.getElementById('chat-messages');
-  const div = document.createElement('div');
-  div.className='chat-msg '+type; div.textContent=text;
-  msgs.appendChild(div);
-  msgs.scrollTop=msgs.scrollHeight;
+
+// Panel zone seçmeden kapatılırsa Ana Bina'ya kaydet
+function commitPendingToHome() {
+  if(!pendingNote) return;
+  const home = zones.find(z=>z.isHome);
+  if(home) { if(!home.notes) home.notes=[]; home.notes.push(pendingNote); saveData(); flashToast('Not Ana Bina\'ya kaydedildi'); }
+  pendingNote=null;
+}
+
+// Not zonunu değiştirme
+let reassignNoteId=null, reassignFromZone=null;
+function startReassignNote(noteId, fromZoneId) {
+  reassignNoteId=noteId; reassignFromZone=fromZoneId;
+  const body=document.getElementById('side-panel-body');
+  document.getElementById('side-panel-title').textContent='Yeni zone seç';
+  body.innerHTML = zones.filter(z=>z.points&&z.points.length>=3||z.isHome).map(z=>`
+    <div class="zone-list-item" data-reassign="${z.id}">
+      <div class="zone-color-dot" style="background:${z.color}"></div>
+      <span class="zone-list-name">${z.name}${z.isHome?' 🏠':''}</span>
+    </div>`).join('');
+  body.querySelectorAll('[data-reassign]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const fromZone=zones.find(z=>z.id===reassignFromZone);
+      const toZone=zones.find(z=>z.id===el.dataset.reassign);
+      if(fromZone&&toZone){
+        const idx=(fromZone.notes||[]).findIndex(n=>n.id===reassignNoteId);
+        if(idx>=0){ const note=fromZone.notes.splice(idx,1)[0]; if(!toZone.notes)toZone.notes=[]; toZone.notes.push(note); saveData(); }
+      }
+      reassignNoteId=null; reassignFromZone=null;
+      openSidePanel('notes');
+    });
+  });
+}
+
+function flashToast(msg) {
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t);
+    t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(44,44,42,0.92);color:white;padding:10px 18px;border-radius:20px;font-size:13px;z-index:300;transition:opacity 0.3s;font-family:-apple-system,sans-serif;'; }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>{t.style.opacity='0';},2200);
 }
 
 /* ---- ZONE ÇIZME ---- */
@@ -674,6 +821,10 @@ function mapToContainer(mx,my) { return{x:mx*scale+offsetX,y:my*scale+offsetY}; 
 mapContainer.addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch') activeTouches++;
   if(e.target.closest('.pin')) return;
+  // Açık panelleri kapat (çizim/pin modunda değilsek)
+  if(!drawingZone && !addingMode) {
+    if(sidePanel.classList.contains('open')) closeSidePanel();
+  }
   if(activeTouches>=2){isPanning=false;return;}
   if(drawingZone){
     const rect=mapContainer.getBoundingClientRect();
@@ -802,11 +953,12 @@ function openZoneModal(zone) {
   editingZoneId=zone.id; editingPinId=null;
   document.getElementById('modal-title').textContent=zone.name;
   pinNameInput.value=zone.name; modalColor=zone.color;
-  modalDelete.style.display='inline-block';
+  // Ana Bina silinemez
+  modalDelete.style.display = zone.isHome ? 'none' : 'inline-block';
   document.getElementById('zone-folder-section').style.display='block';
   document.getElementById('pin-water-section').style.display='none';
   renderModalColors(); switchZoneTab('water');
-  renderWaterSection(zone); renderTaskSection(zone);
+  renderWaterSection(zone); renderTaskSection(zone); renderZoneNotes(zone);
   modalOverlay.classList.add('open'); waterDuration.value='';
 }
 function openPinModal(pin) {
@@ -845,9 +997,22 @@ function switchZoneTab(t) {
 document.querySelectorAll('.zone-tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
     switchZoneTab(tab.dataset.tab);
-    if(tab.dataset.tab==='tasks'&&editingZoneId){const z=zones.find(z=>z.id===editingZoneId);if(z)renderTaskSection(z);}
+    if(!editingZoneId) return;
+    const z=zones.find(z=>z.id===editingZoneId); if(!z) return;
+    if(tab.dataset.tab==='tasks') renderTaskSection(z);
+    if(tab.dataset.tab==='archive') renderZoneNotes(z);
   });
 });
+function renderZoneNotes(zone) {
+  const el=document.getElementById('zone-notes-list');
+  const ns=zone.notes||[];
+  if(!ns.length){ el.innerHTML='<div style="color:#bbb;font-style:italic;font-size:12px;">Henüz not yok</div>'; el.style.cssText='font-size:13px;'; return; }
+  el.style.cssText='font-size:13px;text-align:left;';
+  el.innerHTML=[...ns].reverse().map(n=>{
+    const d=new Date(n.ts);
+    return`<div style="padding:8px 0;border-bottom:1px solid #f5f0e8;"><div style="color:#2c2c2a;">${n.text}</div><div style="font-size:11px;color:#aaa;margin-top:2px;">${d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  }).join('');
+}
 function renderWaterSection(zone) {
   const last5=zone.waterLog?[...zone.waterLog].reverse().slice(0,5):[];
   waterHistory.innerHTML=!last5.length?'<div style="color:#bbb;font-style:italic;font-size:12px;">Henüz sulama kaydı yok</div>':last5.map(e=>{
@@ -915,9 +1080,16 @@ modalDelete.addEventListener('click',()=>{
 mapImg.onload=()=>{
   const iw=mapImg.naturalWidth,ih=mapImg.naturalHeight;
   const cw=mapContainer.clientWidth,ch=mapContainer.clientHeight;
-  scale=Math.min(cw/iw,ch/ih); minScale=scale;
-  offsetX=(cw-iw*scale)/2; offsetY=(ch-ih*scale)/2;
-  applyTransform(); loadData(); renderPins(); renderZones();
+  // minScale: tüm harita ekrana sığar
+  minScale=Math.min(cw/iw,ch/ih);
+  loadData(); 
+  // İlk açılış: 9 ızgarada sağ-alt ile alt-orta arası bölgeye yakınlaş
+  // hedef nokta haritanın yatayda ~%58, dikeyde ~%80'i (ev bölgesi)
+  scale=Math.max(minScale*1.8, minScale);
+  const targetX = iw*0.58, targetY = ih*0.80;
+  offsetX = cw/2 - targetX*scale;
+  offsetY = ch/2 - targetY*scale;
+  applyTransform(); renderPins(); renderZones();
 };
 mapImg.onerror=()=>{
   mapContainer.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#888;padding:20px;text-align:center">
@@ -926,6 +1098,23 @@ mapImg.onerror=()=>{
     <div style="font-size:13px">Dosyayı <strong>harita.jpeg</strong> adıyla GitHub'a yükle.</div></div>`;
 };
 mapImg.src=MAP_URL;
+
+/* ---- ZONE'A ODAKLAN ---- */
+function focusZone(zone) {
+  if(!zone.points || zone.points.length<3) return; // Ana Bina gibi noktasız zone'lar
+  const cw=mapContainer.clientWidth, ch=mapContainer.clientHeight;
+  const xs=zone.points.map(p=>p.x), ys=zone.points.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const zw=maxX-minX, zh=maxY-minY;
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  // Zone ekrana sığacak şekilde ölçek (kenar payı %20)
+  const targetScale=Math.min(cw/(zw*1.4), ch/(zh*1.4));
+  scale=Math.min(4, Math.max(minScale, targetScale));
+  offsetX=cw/2 - cx*scale;
+  offsetY=ch/2 - cy*scale;
+  applyTransform(); renderPins(); renderZones();
+}
 </script>
 </body>
 </html>
